@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Flight Guide</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="app.js"></script>
+  </head>
+  <body>
+    <form id="filters">
+      <h1>Flight Guide</h1>
+
+      <input id="q" name="q" type="search" placeholder="Search models…" autocomplete="off" />
+
+      <fieldset>
+        <legend>Flight numbers</legend>
+        <div id="ranges" class="ranges"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Category</legend>
+        <div id="categories" class="checks"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Availability</legend>
+        <label class="check"><input type="checkbox" name="in_stock" value="1" /> In stock only</label>
+        <label class="check"><input type="checkbox" id="hide-oop" checked /> Hide out of production</label>
+      </fieldset>
+
+      <fieldset class="brands">
+        <legend>Brand <button type="button" id="clear-brands" class="link" hidden>clear</button></legend>
+        <input id="brand-search" type="search" placeholder="Filter brands…" autocomplete="off" />
+        <div id="brands" class="checks"></div>
+      </fieldset>
+
+      <button type="button" id="reset">Reset all filters</button>
+    </form>
+
+    <main>
+      <header id="toolbar">
+        <strong id="count"></strong>
+        <label>
+          Color by
+          <select id="color" name="color">
+            <option value="brand">Brand</option>
+            <option value="category">Category</option>
+            <option value="stability">Stability</option>
+          </select>
+        </label>
+        <label class="check"><input type="checkbox" id="ghosts" name="ghosts" checked /> Show other discs</label>
+        <span class="key" aria-hidden="true">
+          <svg role="presentation" width="92" height="14" viewBox="0 0 92 14">
+            <line x1="90" y1="7" x2="40" y2="7" class="key-turn" />
+            <line x1="40" y1="7" x2="10" y2="7" class="key-fade" />
+            <circle cx="10" cy="7" r="5" class="key-dot" />
+          </svg>
+        </span>
+        <span class="key-text">starts at 0, thick = turn, thin = fade, dot = turn+fade</span>
+        <span id="zoom-hint" class="muted">Drag to zoom</span>
+        <button type="button" id="reset-zoom" hidden>Reset zoom (Esc)</button>
+      </header>
+      <div id="chart"></div>
+      <div id="empty" hidden>
+        <p id="empty-text"></p>
+        <button type="button" id="empty-reset">Reset zoom (Esc)</button>
+      </div>
+      <div id="tooltip" role="tooltip" hidden></div>
+    </main>
+
+    <dialog id="detail">
+      <form method="dialog"><button type="submit" class="close" aria-label="Close">×</button></form>
+      <div id="detail-body"></div>
+    </dialog>
+  </body>
+</html>

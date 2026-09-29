@@ -1,0 +1,472 @@
+:root {
+  --bg: #12151c;
+  --panel: #1a1e27;
+  --grid: #2b313d;
+  --text: #e6e8ec;
+  --muted: #8a92a3;
+  --accent: #f5c518;
+  --turn: #5b8def;
+  --fade: #e5484d;
+  color-scheme: dark;
+  font: 14px/1.4 system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  /* fill the window exactly; otherwise content like the chart's svg, which
+     has a fixed size, can grow the row and scroll the page */
+  grid-template-rows: minmax(0, 1fr);
+  background: var(--bg);
+  color: var(--text);
+}
+
+h1 {
+  font-size: 18px;
+  margin: 0 0 12px;
+}
+
+#filters {
+  background: var(--panel);
+  padding: 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+fieldset {
+  border: 1px solid var(--grid);
+  border-radius: 6px;
+  margin: 0;
+  padding: 8px 10px 10px;
+}
+
+legend {
+  color: var(--muted);
+  padding: 0 4px;
+}
+
+input[type="search"],
+select {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--grid);
+  border-radius: 4px;
+  padding: 5px 7px;
+  font: inherit;
+  width: 100%;
+}
+
+/* two-handle sliders: two range inputs stacked on one track, with only their
+   thumbs taking pointer events */
+
+.ranges {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.range-head {
+  display: flex;
+  justify-content: space-between;
+}
+
+.range output {
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.range.active output {
+  color: var(--accent);
+}
+
+.dual {
+  --thumb: 14px;
+  position: relative;
+  height: 20px;
+}
+
+/* inset by half a thumb, since that's where the thumb centers travel */
+.dual::before {
+  content: "";
+  position: absolute;
+  left: calc(var(--thumb) / 2);
+  right: calc(var(--thumb) / 2);
+  top: 8px;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--grid) var(--lo, 0%),
+    var(--muted) var(--lo, 0%) var(--hi, 100%),
+    var(--grid) var(--hi, 100%)
+  );
+}
+
+.range.active .dual::before {
+  background: linear-gradient(
+    to right,
+    var(--grid) var(--lo),
+    var(--accent) var(--lo) var(--hi),
+    var(--grid) var(--hi)
+  );
+}
+
+.dual input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  background: none;
+  pointer-events: none;
+}
+
+.dual input::-webkit-slider-runnable-track {
+  height: 100%;
+  background: none;
+}
+
+.dual input::-moz-range-track {
+  background: none;
+}
+
+.dual input::-webkit-slider-thumb {
+  appearance: none;
+  pointer-events: auto;
+  width: var(--thumb);
+  height: var(--thumb);
+  margin-top: 3px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 2px solid var(--panel);
+  cursor: grab;
+}
+
+.dual input::-moz-range-thumb {
+  pointer-events: auto;
+  width: var(--thumb);
+  height: var(--thumb);
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: var(--text);
+  border: 2px solid var(--panel);
+  cursor: grab;
+}
+
+.dual input:active::-webkit-slider-thumb {
+  cursor: grabbing;
+}
+
+.dual input:focus-visible {
+  outline: none;
+}
+
+.dual input:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.dual input:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.checks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+.brands {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+#brands {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid;
+  flex: none;
+}
+
+.n {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--grid);
+  border: none;
+  border-radius: 4px;
+  padding: 6px 10px;
+  cursor: pointer;
+}
+
+button.link {
+  background: none;
+  color: var(--accent);
+  padding: 0 2px;
+}
+
+main {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+#toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--grid);
+}
+
+#toolbar select {
+  width: auto;
+  margin-left: 4px;
+}
+
+/* no taller than a line of text, so showing it doesn't resize the toolbar */
+#reset-zoom {
+  padding: 0 8px;
+  font-size: 12px;
+  line-height: 20px;
+}
+
+#legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  font-size: 12px;
+}
+
+.key-text {
+  color: var(--muted);
+  font-size: 12px;
+  margin-left: -10px;
+}
+
+/* the svg is positioned absolutely so its size, set from the container's,
+   never feeds back into the container's */
+#chart {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: auto;
+}
+
+#chart svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+
+.brush {
+  fill: var(--accent);
+  fill-opacity: 0.1;
+  stroke: var(--accent);
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+
+#zoom-hint {
+  font-size: 12px;
+}
+
+#empty {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  color: var(--muted);
+  text-align: center;
+  background: #0b0d12ee;
+  border: 1px solid var(--grid);
+  border-radius: 8px;
+  padding: 4px 20px 16px;
+}
+
+/* chart */
+
+.axis .grid {
+  stroke: var(--grid);
+}
+
+.axis .zero {
+  stroke: var(--accent);
+  stroke-dasharray: 4 4;
+  opacity: 0.6;
+}
+
+.axis text {
+  fill: var(--muted);
+  font-size: 12px;
+}
+
+.axis .axis-title {
+  fill: var(--text);
+  font-size: 13px;
+}
+
+.ghost {
+  fill: #4a5162;
+  opacity: 0.35;
+}
+
+.turn,
+.key-turn {
+  stroke: var(--turn);
+  stroke-width: var(--turn-w, 6px);
+  stroke-linecap: round;
+  stroke-opacity: calc(0.35 * var(--k, 1));
+}
+
+.fade,
+.key-fade {
+  stroke: var(--fade);
+  stroke-width: 1.5;
+  stroke-opacity: calc(0.85 * var(--k, 1));
+}
+
+.key-dot {
+  fill: #9b6bff;
+  stroke: var(--text);
+}
+
+.disc {
+  stroke-width: 1.5;
+  cursor: pointer;
+}
+
+.lines g.hover line {
+  stroke-opacity: 1;
+}
+
+.lines g.hover .turn {
+  stroke-opacity: 0.6;
+}
+
+.disc.hover {
+  stroke: var(--text);
+  stroke-width: 2.5;
+}
+
+.label {
+  fill: var(--text);
+  font-size: 11px;
+  pointer-events: none;
+  paint-order: stroke;
+  stroke: var(--bg);
+  stroke-width: 3px;
+  stroke-linejoin: round;
+}
+
+#tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: #0b0d12ee;
+  border: 1px solid var(--grid);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 13px;
+  max-width: 260px;
+  z-index: 1;
+}
+
+#tooltip .nums,
+#detail .nums {
+  font-variant-numeric: tabular-nums;
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+/* detail dialog */
+
+#detail {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--grid);
+  border-radius: 8px;
+  width: min(560px, 90vw);
+  padding: 20px;
+}
+
+#detail::backdrop {
+  background: #0008;
+}
+
+#detail .close {
+  float: right;
+  font-size: 20px;
+  line-height: 1;
+  background: none;
+}
+
+#detail h2 {
+  margin: 0 0 4px;
+}
+
+#detail img {
+  float: right;
+  width: 140px;
+  margin: 0 0 8px 12px;
+}
+
+#detail dl {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  font-size: 13px;
+}
+
+#detail dt {
+  color: var(--muted);
+}
+
+#detail dd {
+  margin: 0;
+}
+
+#detail a {
+  color: var(--accent);
+}
