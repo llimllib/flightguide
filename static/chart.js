@@ -63,6 +63,9 @@ export function domainFor(discs, extent) {
 const PAD_X = 24;
 const PAD_Y = 14;
 
+// the closest lanes in a crowded speed row get, in pixels
+const MIN_LANE = 2;
+
 // a brush smaller than this, in pixels, is a click and doesn't zoom
 const MIN_BRUSH = 8;
 
@@ -343,10 +346,9 @@ export class Chart {
   // keep their lane, even if it's crowded, or the nearest one if the row has
   // lost lanes, then slide toward the center through any lanes left free by
   // removed discs. Sliding one free lane at a time never passes a disc that
-  // overlaps horizontally, so their order is kept. A disc whose dot has come
-  // to overlap one it didn't before, as when dots grow or the chart zooms
-  // out, moves to the nearest lane where it doesn't overlap any; overlaps
-  // that were already there, in a crowded row, are left alone. New discs then take the
+  // overlaps horizontally, so their order is kept. A disc whose dot overlaps
+  // another's moves to the nearest lane where it doesn't, if there is one;
+  // hiding a disc is worse than moving it. New discs then take the
   // lane nearest the center where their whole flight line fits without
   // overlapping another, or failing that, where at least their dot does.
   layout(dom) {
@@ -366,17 +368,29 @@ export class Chart {
       // a row boundary, near it; at the domain's edge that means inside PAD_Y
       let halfBand = Number.isInteger(speed) ? pxPerSpeed / 2 - this.R - 2 : pxPerSpeed * 0.15;
       if (speed <= dom.speed[0] || speed >= dom.speed[1]) halfBand = Math.min(halfBand, PAD_Y - this.R - 1);
-      const m = Math.max(0, Math.floor(halfBand / gap));
+      // a row needs a lane for each disc sharing a spot; if they don't fit a
+      // dot apart, space lanes closer so dots overlap partly instead of one
+      // hiding another entirely
+      const stack = Math.max(...Map.groupBy(row, (it) => stab(it.disc)).values().map((g) => g.length));
+      let m = Math.max(0, Math.floor(halfBand / gap));
+      let spacing = gap;
+      if (2 * m + 1 < stack && halfBand > 0) {
+        m = Math.ceil((stack - 1) / 2);
+        spacing = Math.max(MIN_LANE, halfBand / m);
+        m = Math.min(m, Math.floor(halfBand / spacing));
+      }
       const preference = [0];
       for (let i = 1; i <= m; i++) preference.push(-i, i);
       const lanes = new Map(preference.map((p) => [p, []]));
 
       // whole: the flight line must fit, not just the dot
       const fits = (p, x, whole) => lanes.get(p)?.every((o) => apart(o.dot, x.dot) && (!whole || apart(o.span, x.span)));
+      // clashes counts the dots in lane p that x's dot would overlap
+      const clashes = (p, x) => lanes.get(p).filter((o) => !apart(o.dot, x.dot)).length;
       const put = (p, x) => {
         lanes.get(p).push(x);
         x.it.lanePos = p;
-        x.it.toLane = p * gap;
+        x.it.toLane = p * spacing;
       };
 
       const kept = [];
@@ -399,14 +413,8 @@ export class Chart {
         while (p !== 0 && fits(p - Math.sign(p), x, true)) p -= Math.sign(p);
         put(p, x);
       }
-      const overlapping = (x) =>
-        lanes
-          .get(x.it.lanePos)
-          .filter((o) => o !== x && !apart(o.dot, x.dot))
-          .map((o) => o.it.disc.id);
       for (const x of kept) {
-        const before = x.it.overlaps ?? [];
-        if (overlapping(x).every((id) => before.includes(id))) continue;
+        if (lanes.get(x.it.lanePos).every((o) => o === x || apart(o.dot, x.dot))) continue;
         const p = x.it.lanePos;
         const lane = lanes.get(p);
         const q = preference
@@ -422,10 +430,9 @@ export class Chart {
         const p =
           preference.find((q) => fits(q, x, true)) ??
           preference.find((q) => fits(q, x, false)) ??
-          preference.reduce((best, q) => (lanes.get(q).length < lanes.get(best).length ? q : best), 0);
+          preference.reduce((best, q) => (clashes(q, x) < clashes(best, x) ? q : best), 0);
         put(p, x);
       }
-      for (const x of [...kept, ...fresh]) x.it.overlaps = overlapping(x);
     }
   }
 
