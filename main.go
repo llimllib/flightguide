@@ -56,10 +56,12 @@ const listColumns = `id, brand, model, pdga_model, category, speed, glide, turn,
 	bg_color, text_color, link, image`
 
 func (d *Disc) listFields() []any {
-	return []any{&d.ID, &d.Brand, &d.Model, &d.PDGAModel, &d.Category,
+	return []any{
+		&d.ID, &d.Brand, &d.Model, &d.PDGAModel, &d.Category,
 		&d.Speed, &d.Glide, &d.Turn, &d.Fade, &d.Stability, &d.StabilityGroup,
 		&d.OutOfProduction, &d.InStockProducts, &d.OnSale, &d.BgColor,
-		&d.TextColor, &d.Link, &d.Image}
+		&d.TextColor, &d.Link, &d.Image,
+	}
 }
 
 type server struct {
