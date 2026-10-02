@@ -1,7 +1,14 @@
 [tools]
-go = "1.27"
 python = "3.14"
 
 [tasks.dev]
-description = "run the server in dev"
-run = "modd"
+description = "serve the site locally"
+run = "python -m http.server --directory static 8417"
+
+[tasks.build]
+description = "rebuild discs.db from the scraped pages, then the JSON the site loads"
+run = ["python build_db.py", "python build_json.py"]
+
+[tasks.json]
+description = "rebuild static/data from discs.db"
+run = "python build_json.py"

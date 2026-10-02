@@ -2,12 +2,13 @@ import { Chart } from "./chart.js";
 
 const $ = (s) => document.querySelector(s);
 const filters = $("#filters");
+// each range is a filter slider and the value it compares against
 const RANGES = [
-  ["speed", "Speed"],
-  ["glide", "Glide"],
-  ["turn", "Turn"],
-  ["fade", "Fade"],
-  ["stability", "Turn + Fade"],
+  ["speed", "Speed", (d) => d.speed],
+  ["glide", "Glide", (d) => d.glide],
+  ["turn", "Turn", (d) => d.turn],
+  ["fade", "Fade", (d) => d.fade],
+  ["stability", "Turn + Fade", (d) => d.turn + d.fade],
 ];
 
 const CATEGORY_COLORS = {
@@ -36,19 +37,42 @@ const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const nums = (d) => [d.speed, d.glide, d.turn, d.fade].join(" | ");
 
-async function getJSON(url, signal) {
-  const res = await fetch(url, { signal });
+async function getJSON(url) {
+  const res = await fetch(url);
   if (!res.ok) throw new Error(`${url}: ${res.status}`);
   return res.json();
+}
+
+// buildMeta derives the values the filter controls need from the full dataset
+function buildMeta(discs) {
+  const brands = new Map();
+  const categories = new Map();
+  for (const d of discs) {
+    // a brand's discs all share its colors, so any row's colors will do
+    const b = brands.get(d.brand) ?? { name: d.brand, count: 0, bg_color: d.bg_color, text_color: d.text_color };
+    b.count++;
+    brands.set(d.brand, b);
+    if (d.category) categories.set(d.category, (categories.get(d.category) ?? 0) + 1);
+  }
+  const ranges = {};
+  for (const [r, , value] of RANGES) {
+    const vals = discs.map(value);
+    ranges[r] = { min: Math.min(...vals), max: Math.max(...vals) };
+  }
+  return {
+    brands: [...brands.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })),
+    categories: [...categories].sort((a, b) => b[1] - a[1]).map(([c]) => c),
+    ranges,
+  };
 }
 
 let meta;
 let allDiscs;
 let chart;
-let inflight;
 
 async function init() {
-  [meta, allDiscs] = await Promise.all([getJSON("/api/meta"), getJSON("/api/discs")]);
+  allDiscs = await getJSON("data/discs.json");
+  meta = buildMeta(allDiscs);
 
   $("#categories").innerHTML = meta.categories
     .map((c) => `<label class="check"><input type="checkbox" name="category" value="${esc(c)}"> ${esc(c)}</label>`)
@@ -81,13 +105,11 @@ async function init() {
   });
 
   filters.addEventListener("submit", (e) => e.preventDefault());
-  let timer;
   filters.addEventListener("input", (e) => {
     if (e.target.id === "brand-search") return filterBrandList(e.target.value);
     const range = e.target.closest(".range");
     if (range) syncSlider(range.dataset.range);
-    clearTimeout(timer);
-    timer = setTimeout(update, 150);
+    update();
   });
   // a slider's handles may cross while dragging; once released, put them back
   // in order so the min handle holds the low value
@@ -215,21 +237,53 @@ function filterBrandList(text) {
   for (const label of $("#brands").children) label.hidden = !label.dataset.name.includes(t);
 }
 
-async function update() {
+// applyFilters returns the discs matching a filterParams() query. build_json.py
+// writes them in the order the chart draws them, fastest and most overstable
+// first, and filtering keeps that order.
+function applyFilters(p) {
+  const brands = new Set(p.getAll("brand"));
+  const categories = new Set(p.getAll("category"));
+  const q = (p.get("q") ?? "").toLowerCase();
+  const hideOOP = p.get("oop") === "0";
+  const inStock = p.get("in_stock") === "1";
+  // only the sliders away from the ends of their track filter anything
+  const bounds = RANGES.flatMap(([r, , value]) => {
+    const lo = p.get(`${r}_min`);
+    const hi = p.get(`${r}_max`);
+    return lo === null && hi === null ? [] : [[value, Number(lo ?? -Infinity), Number(hi ?? Infinity)]];
+  });
+
+  return allDiscs.filter((d) => {
+    if (brands.size && !brands.has(d.brand)) return false;
+    if (categories.size && !categories.has(d.category)) return false;
+    if (hideOOP && d.out_of_production) return false;
+    if (inStock && !(d.in_stock_products > 0)) return false;
+    if (q && !d.model.toLowerCase().includes(q) && !(d.pdga_model ?? "").toLowerCase().includes(q)) return false;
+    for (const [value, lo, hi] of bounds) {
+      const v = value(d);
+      if (v < lo || v > hi) return false;
+    }
+    return true;
+  });
+}
+
+// update redraws the chart for the current filters. Filtering is local and
+// fast, but redrawing every disc isn't, so while a slider is being dragged we
+// coalesce to one redraw per frame.
+let pending;
+function update() {
+  pending ??= requestAnimationFrame(() => {
+    pending = null;
+    redraw();
+  });
+}
+
+function redraw() {
   saveURL();
   const params = filterParams();
   $("#clear-brands").hidden = !params.has("brand");
 
-  inflight?.abort();
-  inflight = new AbortController();
-  let discs;
-  try {
-    discs = await getJSON(`/api/discs?${params}`, inflight.signal);
-  } catch (err) {
-    if (err.name === "AbortError") return;
-    throw err;
-  }
-
+  const discs = applyFilters(params);
   const ids = new Set(discs.map((d) => d.id));
   const ghosts = $("#ghosts").checked ? allDiscs.filter((d) => !ids.has(d.id)) : [];
   chart.setData(discs, ghosts, meta.ranges, colorers[$("#color").value]);
@@ -300,11 +354,14 @@ function showTooltip(d, e) {
   tip.style.top = `${y}px`;
 }
 
-async function showDetail(summary) {
+// descriptions are two thirds of the data and only needed here, so they live in
+// their own file, fetched the first time a disc is opened
+let descriptions;
+
+async function showDetail(d) {
   $("#tooltip").hidden = true;
-  const d = await getJSON(`/api/discs/${summary.id}`);
-  // the description is HTML from Marshall Street; show only its text
-  const desc = new DOMParser().parseFromString(d.description ?? "", "text/html").body.textContent.trim();
+  descriptions ??= getJSON("data/descriptions.json");
+  const desc = (await descriptions)[d.id] ?? "";
   const specs = [
     ["Category", d.category],
     ["Stability", d.stability && `${d.stability} (${d.stability_group})`],
