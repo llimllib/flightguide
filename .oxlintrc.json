@@ -1,0 +1,11 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/npm/oxlint/configuration_schema.json",
+  "env": { "browser": true, "es2024": true },
+  "categories": { "correctness": "error", "suspicious": "warn" },
+  "rules": {
+    "eqeqeq": ["warn", "always", { "null": "ignore" }],
+    "no-shadow": "warn",
+    "require-unicode-regexp": "warn",
+    "unicorn/no-array-sort": "off"
+  }
+}

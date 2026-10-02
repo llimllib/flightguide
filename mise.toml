@@ -1,5 +1,7 @@
 [tools]
 python = "3.14"
+"github:llimllib/devd" = "latest"
+"npm:oxlint" = "latest"
 
 [tasks.dev]
 description = "serve the site locally, with caching off"
@@ -12,3 +14,7 @@ run = ["python build_db.py", "python build_json.py"]
 [tasks.json]
 description = "rebuild static/data from discs.db"
 run = "python build_json.py"
+
+[tasks.lint]
+description = "lint the javascript code"
+run = "oxlint static"

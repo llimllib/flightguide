@@ -28,6 +28,10 @@ const el = (tag, attrs = {}) => {
 const lerp = (a, b, t) => a + (b - a) * t;
 const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2);
 const stab = (d) => d.turn + d.fade;
+// apart is true when two [lo, hi] intervals don't overlap, and hits is the
+// same test for two {x, y, w, h} boxes, inverted
+const apart = ([a, b], [c, d]) => b <= c || d <= a;
+const hits = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
 // fit returns a domain covering values, at least minHalf either side of
 // center, shifted (not shrunk) to stay within bounds where possible
@@ -362,7 +366,6 @@ export class Chart {
       else it.toLane = it.lane;
     }
     const rows = Map.groupBy(shown, (it) => it.disc.speed);
-    const apart = ([a, b], [c, d]) => b <= c || d <= a;
     for (const [speed, row] of rows) {
       // keep dots inside their row, and discs with a half speed, which sit on
       // a row boundary, near it; at the domain's edge that means inside PAD_Y
@@ -417,12 +420,12 @@ export class Chart {
         if (lanes.get(x.it.lanePos).every((o) => o === x || apart(o.dot, x.dot))) continue;
         const p = x.it.lanePos;
         const lane = lanes.get(p);
-        const q = preference
+        const dest = preference
           .filter((q) => q !== p && fits(q, x, false))
           .sort((a, b) => Math.abs(a - p) - Math.abs(b - p))[0];
-        if (q === undefined) continue;
+        if (dest === undefined) continue;
         lane.splice(lane.indexOf(x), 1);
-        put(q, x);
+        put(dest, x);
       }
 
       fresh.sort((a, b) => a.span[0] - b.span[0]);
@@ -546,7 +549,6 @@ export class Chart {
     }));
     const dots = pos.map(({ x, y }) => ({ x: x - R, y: y - R, w: 2 * R, h: 2 * R }));
     const placed = [];
-    const hits = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
     // sort is stable, so within each group labels fall in data order: fastest
     // and most overstable first. With out of production discs hidden, as they
