@@ -311,6 +311,7 @@ function redraw() {
     if (relaxed) discs = beyond;
   }
   $("#relaxed").hidden = !relaxed;
+  showSingle(discs.length === 1 ? discs[0] : null);
 
   const ids = new Set(discs.map((d) => d.id));
   const ghosts = $("#ghosts").checked ? allDiscs.filter((d) => !ids.has(d.id)) : [];
@@ -386,10 +387,14 @@ function showTooltip(d, e) {
 // their own file, fetched the first time a disc is opened
 let descriptions;
 
-async function showDetail(d) {
-  $("#tooltip").hidden = true;
+function describe(d) {
   descriptions ??= getJSON("data/descriptions.json");
-  const desc = (await descriptions)[d.id] ?? "";
+  return descriptions.then((all) => all[d.id] ?? "");
+}
+
+// detailCard renders everything known about a disc. The dialog shows it on a
+// click; when the filters leave a single disc, so does the chart.
+function detailCard(d, desc) {
   const specs = [
     ["Category", d.category],
     ["Stability", d.stability && `${d.stability} (${d.stability_group})`],
@@ -402,15 +407,39 @@ async function showDetail(d) {
     ["PDGA approved", d.pdga_approved_date],
     ["Out of production", d.out_of_production ? "yes" : null],
   ].filter(([, v]) => v);
-  $("#detail-body").innerHTML = `
+  return `
     ${d.image ? `<img src="${esc(d.image)}" alt="">` : ""}
     <h2>${esc(d.model)}</h2>
     <div class="muted">${esc(d.brand)}</div>
-    <p class="nums">${nums(d)}</p>
+    <p class="nums" title="speed | glide | turn | fade">${nums(d)}</p>
     <dl>${specs.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
     ${desc ? `<p>${esc(desc)}</p>` : ""}
     ${d.link ? `<p><a href="${esc(d.link)}" target="_blank" rel="noopener">View at Marshall Street →</a></p>` : ""}`;
+}
+
+async function showDetail(d) {
+  $("#tooltip").hidden = true;
+  $("#detail-body").innerHTML = detailCard(d, await describe(d));
   $("#detail").showModal();
+}
+
+// showSingle fills the chart when the filters leave one disc. A lone dot plots
+// only speed and turn+fade, so it can't show glide at all, and a disc like the
+// Mako3 at 5/5/0/0 has no turn or fade line to draw either.
+let singleId = null;
+async function showSingle(d) {
+  const panel = $("#inline-detail");
+  panel.hidden = !d;
+  if (!d) {
+    singleId = null;
+    return;
+  }
+  if (d.id === singleId) return;
+  singleId = d.id;
+  // render at once, then fill the description in when it arrives
+  panel.innerHTML = detailCard(d, "");
+  const desc = await describe(d);
+  if (singleId === d.id) panel.innerHTML = detailCard(d, desc);
 }
 
 init();

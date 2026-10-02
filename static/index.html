@@ -66,7 +66,9 @@
         <span id="zoom-hint" class="muted">Drag to zoom</span>
         <button type="button" id="reset-zoom" hidden>Reset zoom (Esc)</button>
       </header>
-      <div id="chart"></div>
+      <div id="chart">
+        <aside id="inline-detail" class="card" hidden></aside>
+      </div>
       <div id="empty" hidden>
         <p id="empty-text"></p>
         <button type="button" id="empty-reset">Reset zoom (Esc)</button>
@@ -76,7 +78,7 @@
 
     <dialog id="detail">
       <form method="dialog"><button type="submit" class="close" aria-label="Close">×</button></form>
-      <div id="detail-body"></div>
+      <div id="detail-body" class="card"></div>
     </dialog>
   </body>
 </html>
