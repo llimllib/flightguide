@@ -368,9 +368,9 @@ main {
   stroke: var(--text);
 }
 
+/* the cursor is set on the svg instead, since the hit area is wider than the dot */
 .disc {
   stroke-width: 1.5;
-  cursor: pointer;
 }
 
 .lines g.hover line {

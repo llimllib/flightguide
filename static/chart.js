@@ -31,7 +31,8 @@ const stab = (d) => d.turn + d.fade;
 // apart is true when two [lo, hi] intervals don't overlap, and hits is the
 // same test for two {x, y, w, h} boxes, inverted
 const apart = ([a, b], [c, d]) => b <= c || d <= a;
-const hits = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+const hits = (a, b) =>
+  a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
 // fit returns a domain covering values, at least minHalf either side of
 // center, shifted (not shrunk) to stay within bounds where possible
@@ -43,18 +44,26 @@ function fit(values, minHalf, bounds) {
   let d0 = c - half;
   let d1 = c + half;
   if (d0 < bounds[0]) [d0, d1] = [bounds[0], d1 + bounds[0] - d0];
-  if (d1 > bounds[1]) [d0, d1] = [Math.max(bounds[0], d0 - (d1 - bounds[1])), bounds[1]];
+  if (d1 > bounds[1])
+    [d0, d1] = [Math.max(bounds[0], d0 - (d1 - bounds[1])), bounds[1]];
   return [d0, d1];
 }
 
 export function domainFor(discs, extent) {
   const speedBounds = [extent.speed.min - PAD, extent.speed.max + PAD];
-  const stabBounds = [Math.min(0, extent.stability.min) - PAD, extent.stability.max + PAD];
+  const stabBounds = [
+    Math.min(0, extent.stability.min) - PAD,
+    extent.stability.max + PAD,
+  ];
   if (!discs.length) return { speed: speedBounds, stab: stabBounds };
   // every flight line starts at 0 and passes through the disc's turn
   const flight = discs.flatMap((d) => [stab(d), d.turn]).concat(0);
   // speed rows span ±0.5 around each speed, so extend to whole rows
-  const [v0, v1] = fit(discs.map((d) => d.speed), MIN_SPEED_HALF, speedBounds);
+  const [v0, v1] = fit(
+    discs.map((d) => d.speed),
+    MIN_SPEED_HALF,
+    speedBounds,
+  );
   return {
     speed: [Math.floor(v0 - 0.5) + 0.5, Math.ceil(v1 - 0.5) + 0.5],
     stab: fit(flight, MIN_STABILITY_HALF, stabBounds),
@@ -73,8 +82,20 @@ const MIN_LANE = 2;
 // a brush smaller than this, in pixels, is a click and doesn't zoom
 const MIN_BRUSH = 8;
 
+// how far from a dot's centre, in pixels, the pointer still counts as on it.
+// The reach is an ellipse because speed rows sit tens of pixels apart while
+// lanes within a row are packed about a diameter apart, so there's far more
+// empty space to give away vertically than horizontally. Caps overlapping is
+// fine: the nearest dot wins, so these only decide whether anything is close
+// enough at all
+const HIT_X = 24;
+const HIT_Y = 36;
+
 const inDomain = (d, dom) =>
-  d.speed >= dom.speed[0] && d.speed <= dom.speed[1] && stab(d) >= dom.stab[0] && stab(d) <= dom.stab[1];
+  d.speed >= dom.speed[0] &&
+  d.speed <= dom.speed[1] &&
+  stab(d) >= dom.stab[0] &&
+  stab(d) <= dom.stab[1];
 
 // dot radius shrinks as the chart gets busier
 const radiusFor = (n) => (n > 300 ? 3.5 : n > 80 ? 5 : 7);
@@ -110,37 +131,48 @@ export class Chart {
     this.dotLayer = el("g");
     // labels are clipped too, since they follow their discs during transitions
     this.labelLayer = el("g");
-    plot.append(this.ghostLayer, this.lineLayer, this.dotLayer, this.labelLayer);
+    plot.append(
+      this.ghostLayer,
+      this.lineLayer,
+      this.dotLayer,
+      this.labelLayer,
+    );
     this.brushRect = el("rect", { class: "brush" });
     this.brushRect.style.display = "none";
     this.svg.append(this.axisLayer, plot, this.brushRect);
     container.append(this.svg);
 
+    // hovering is nearest-dot rather than per-element, so every pointer handler
+    // asks hitTest what's under the cursor instead of reading the event target
+    this.hovered = null;
     this.svg.addEventListener("pointerdown", (e) => this.brushStart(e));
-    this.svg.addEventListener("pointermove", (e) => this.brushMove(e));
     this.svg.addEventListener("pointerup", (e) => this.brushEnd(e));
     this.svg.addEventListener("pointercancel", () => this.brushEnd(null));
     this.svg.addEventListener("dblclick", (e) => {
-      if (!e.target.classList.contains("disc")) this.setZoom(null);
+      if (!this.hitTest(e)) this.setZoom(null);
     });
-
-    this.dotLayer.addEventListener("pointerover", (e) => {
-      const it = this.items.get(Number(e.target.dataset.id));
-      if (!it) return;
-      this.highlight(it);
-      onHover(it.disc, e);
+    this.svg.addEventListener("click", (e) => {
+      const it = this.hitTest(e);
+      if (it) onClick(it.disc);
     });
-    this.dotLayer.addEventListener("pointermove", (e) => {
-      const it = this.items.get(Number(e.target.dataset.id));
+    this.svg.addEventListener("pointermove", (e) => {
+      this.brushMove(e);
+      // a brush is a gesture of its own; don't chase discs under it
+      const it = this.brush ? null : this.hitTest(e);
+      if (it !== this.hovered) {
+        this.hovered = it;
+        this.highlight(it);
+        this.svg.style.cursor = it ? "pointer" : "";
+        if (!it) onHover(null);
+      }
+      // keep calling while on the same disc, so the tooltip follows the pointer
       if (it) onHover(it.disc, e);
     });
-    this.dotLayer.addEventListener("pointerout", () => {
+    this.svg.addEventListener("pointerleave", () => {
+      this.hovered = null;
       this.highlight(null);
+      this.svg.style.cursor = "";
       onHover(null);
-    });
-    this.dotLayer.addEventListener("click", (e) => {
-      const it = this.items.get(Number(e.target.dataset.id));
-      if (it) onClick(it.disc);
     });
 
     new ResizeObserver(() => this.resize()).observe(container);
@@ -186,6 +218,10 @@ export class Chart {
       it.label?.el.remove();
       this.items.delete(id);
     }
+    // a filter can take the hovered disc away; forget it so the next pointer
+    // move over its replacement still counts as a change
+    if (this.hovered && !this.items.has(this.hovered.disc.id))
+      this.hovered = null;
     for (const disc of discs) {
       let it = this.items.get(disc.id);
       if (it) {
@@ -198,7 +234,7 @@ export class Chart {
       it.turn = el("line", { class: "turn" });
       it.fade = el("line", { class: "fade" });
       it.lines.append(it.turn, it.fade);
-      it.dot = el("circle", { class: "disc", "data-id": disc.id });
+      it.dot = el("circle", { class: "disc" });
       this.lineLayer.append(it.lines);
       this.dotLayer.append(it.dot);
       this.items.set(disc.id, it);
@@ -206,12 +242,15 @@ export class Chart {
     this.recolor(color);
 
     this.ghosts = ghosts;
-    this.ghostLayer.replaceChildren(...ghosts.map(() => el("circle", { class: "ghost", r: 2.5 })));
+    this.ghostLayer.replaceChildren(
+      ...ghosts.map(() => el("circle", { class: "ghost", r: 2.5 })),
+    );
 
     const target = this.target();
     this.density(target);
     this.layout(target);
-    for (const it of this.items.values()) it.fromLane = it.entering ? it.toLane : it.lane;
+    for (const it of this.items.values())
+      it.fromLane = it.entering ? it.toLane : it.lane;
     this.animate(this.dom ?? target, target);
   }
 
@@ -233,7 +272,10 @@ export class Chart {
     this.visible = n;
     this.onVisible?.(n);
     this.R = radiusFor(n);
-    this.svg.style.setProperty("--k", Math.min(1, Math.max(0.2, Math.sqrt(60 / Math.max(n, 1)))));
+    this.svg.style.setProperty(
+      "--k",
+      Math.min(1, Math.max(0.2, Math.sqrt(60 / Math.max(n, 1)))),
+    );
     this.lineLayer.style.setProperty("--turn-w", `${Math.max(3, this.R)}px`);
   }
 
@@ -257,12 +299,42 @@ export class Chart {
     return {
       x: Math.min(x1, Math.max(x0, e.clientX - box.left)),
       y: Math.min(y1, Math.max(y0, e.clientY - box.top)),
-      inside: e.clientX - box.left >= x0 && e.clientX - box.left <= x1 && e.clientY - box.top >= y0 && e.clientY - box.top <= y1,
+      inside:
+        e.clientX - box.left >= x0 &&
+        e.clientX - box.left <= x1 &&
+        e.clientY - box.top >= y0 &&
+        e.clientY - box.top <= y1,
     };
   }
 
+  // hitTest returns the visible disc nearest the pointer, or null when the
+  // nearest is further than HIT_X/HIT_Y away
+  hitTest(e) {
+    if (!this.dom) return null;
+    const p = this.local(e);
+    if (!p.inside) return null;
+    const { sx, sy } = this.scales(this.dom);
+    const rx = Math.max(this.R + 2, HIT_X);
+    const ry = Math.max(this.R + 2, HIT_Y);
+    let best = null;
+    // distances are scaled by the reach, so inside the ellipse is less than 1
+    let near = 1;
+    for (const it of this.items.values()) {
+      if (!it.vis) continue;
+      const dx = (p.x - sx(stab(it.disc))) / rx;
+      const dy = (p.y - sy(it.disc.speed) - it.lane) / ry;
+      const d = dx * dx + dy * dy;
+      if (d < near) {
+        near = d;
+        best = it;
+      }
+    }
+    return best;
+  }
+
   brushStart(e) {
-    if (e.button !== 0 || !this.dom || e.target.classList.contains("disc")) return;
+    // starting on a disc is a click on it, not a brush
+    if (e.button !== 0 || !this.dom || this.hitTest(e)) return;
     const p = this.local(e);
     if (!p.inside) return;
     e.preventDefault();
@@ -273,14 +345,20 @@ export class Chart {
   brushRectFor(e) {
     const p = this.local(e);
     const b = this.brush;
-    return { x: Math.min(b.x, p.x), y: Math.min(b.y, p.y), w: Math.abs(p.x - b.x), h: Math.abs(p.y - b.y) };
+    return {
+      x: Math.min(b.x, p.x),
+      y: Math.min(b.y, p.y),
+      w: Math.abs(p.x - b.x),
+      h: Math.abs(p.y - b.y),
+    };
   }
 
   brushMove(e) {
     if (!this.brush) return;
     const r = this.brushRectFor(e);
     set(this.brushRect, { x: r.x, y: r.y, width: r.w, height: r.h });
-    this.brushRect.style.display = r.w >= MIN_BRUSH || r.h >= MIN_BRUSH ? "" : "none";
+    this.brushRect.style.display =
+      r.w >= MIN_BRUSH || r.h >= MIN_BRUSH ? "" : "none";
   }
 
   // brushEnd zooms to the brushed rectangle, extended to whole speed rows and
@@ -318,8 +396,11 @@ export class Chart {
     const y0 = MARGIN.top;
     const y1 = h - MARGIN.bottom;
     // widen the domain so it maps to the plot inset by PAD_X and PAD_Y
-    const padS = (PAD_X * (dom.stab[1] - dom.stab[0])) / Math.max(1, x1 - x0 - 2 * PAD_X);
-    const padV = (PAD_Y * (dom.speed[1] - dom.speed[0])) / Math.max(1, y1 - y0 - 2 * PAD_Y);
+    const padS =
+      (PAD_X * (dom.stab[1] - dom.stab[0])) / Math.max(1, x1 - x0 - 2 * PAD_X);
+    const padV =
+      (PAD_Y * (dom.speed[1] - dom.speed[0])) /
+      Math.max(1, y1 - y0 - 2 * PAD_Y);
     const s0 = dom.stab[0] - padS;
     const s1 = dom.stab[1] + padS;
     const v0 = dom.speed[0] - padV;
@@ -369,12 +450,19 @@ export class Chart {
     for (const [speed, row] of rows) {
       // keep dots inside their row, and discs with a half speed, which sit on
       // a row boundary, near it; at the domain's edge that means inside PAD_Y
-      let halfBand = Number.isInteger(speed) ? pxPerSpeed / 2 - this.R - 2 : pxPerSpeed * 0.15;
-      if (speed <= dom.speed[0] || speed >= dom.speed[1]) halfBand = Math.min(halfBand, PAD_Y - this.R - 1);
+      let halfBand = Number.isInteger(speed)
+        ? pxPerSpeed / 2 - this.R - 2
+        : pxPerSpeed * 0.15;
+      if (speed <= dom.speed[0] || speed >= dom.speed[1])
+        halfBand = Math.min(halfBand, PAD_Y - this.R - 1);
       // a row needs a lane for each disc sharing a spot; if they don't fit a
       // dot apart, space lanes closer so dots overlap partly instead of one
       // hiding another entirely
-      const stack = Math.max(...Map.groupBy(row, (it) => stab(it.disc)).values().map((g) => g.length));
+      const stack = Math.max(
+        ...Map.groupBy(row, (it) => stab(it.disc))
+          .values()
+          .map((g) => g.length),
+      );
       let m = Math.max(0, Math.floor(halfBand / gap));
       let spacing = gap;
       if (2 * m + 1 < stack && halfBand > 0) {
@@ -387,9 +475,15 @@ export class Chart {
       const lanes = new Map(preference.map((p) => [p, []]));
 
       // whole: the flight line must fit, not just the dot
-      const fits = (p, x, whole) => lanes.get(p)?.every((o) => apart(o.dot, x.dot) && (!whole || apart(o.span, x.span)));
+      const fits = (p, x, whole) =>
+        lanes
+          .get(p)
+          ?.every(
+            (o) => apart(o.dot, x.dot) && (!whole || apart(o.span, x.span)),
+          );
       // clashes counts the dots in lane p that x's dot would overlap
-      const clashes = (p, x) => lanes.get(p).filter((o) => !apart(o.dot, x.dot)).length;
+      const clashes = (p, x) =>
+        lanes.get(p).filter((o) => !apart(o.dot, x.dot)).length;
       const put = (p, x) => {
         lanes.get(p).push(x);
         x.it.lanePos = p;
@@ -401,7 +495,11 @@ export class Chart {
       for (const it of row) {
         const d = it.disc;
         const xs = [sx(0), sx(d.turn), sx(stab(d))];
-        const x = { it, span: [Math.min(...xs) - this.R, Math.max(...xs) + this.R], dot: [xs[2] - gap / 2, xs[2] + gap / 2] };
+        const x = {
+          it,
+          span: [Math.min(...xs) - this.R, Math.max(...xs) + this.R],
+          dot: [xs[2] - gap / 2, xs[2] + gap / 2],
+        };
         if (it.lanePos != null) {
           put(Math.max(-m, Math.min(m, it.lanePos)), x);
           kept.push(x);
@@ -417,7 +515,10 @@ export class Chart {
         put(p, x);
       }
       for (const x of kept) {
-        if (lanes.get(x.it.lanePos).every((o) => o === x || apart(o.dot, x.dot))) continue;
+        if (
+          lanes.get(x.it.lanePos).every((o) => o === x || apart(o.dot, x.dot))
+        )
+          continue;
         const p = x.it.lanePos;
         const lane = lanes.get(p);
         const dest = preference
@@ -433,7 +534,10 @@ export class Chart {
         const p =
           preference.find((q) => fits(q, x, true)) ??
           preference.find((q) => fits(q, x, false)) ??
-          preference.reduce((best, q) => (clashes(q, x) < clashes(best, x) ? q : best), 0);
+          preference.reduce(
+            (best, q) => (clashes(q, x) < clashes(best, x) ? q : best),
+            0,
+          );
         put(p, x);
       }
     }
@@ -450,7 +554,10 @@ export class Chart {
     const tick = (now) => {
       const t = ease(Math.min(1, (now - start) / DURATION));
       this.draw(
-        { speed: from.speed.map((v, i) => lerp(v, to.speed[i], t)), stab: from.stab.map((v, i) => lerp(v, to.stab[i], t)) },
+        {
+          speed: from.speed.map((v, i) => lerp(v, to.speed[i], t)),
+          stab: from.stab.map((v, i) => lerp(v, to.stab[i], t)),
+        },
         t,
       );
       if (t < 1) this.raf = requestAnimationFrame(tick);
@@ -484,7 +591,8 @@ export class Chart {
       it.vis = lerp(it.fromVis, it.toVis, t);
       const opacity = it.vis * (it.entering ? t : 1);
       const display = opacity > 0 ? "" : "none";
-      it.dot.style.opacity = it.lines.style.opacity = opacity === 1 ? "" : opacity;
+      it.dot.style.opacity = it.lines.style.opacity =
+        opacity === 1 ? "" : opacity;
       it.dot.style.display = it.lines.style.display = display;
       // existing labels follow their discs until drawLabels places them anew
       if (it.label) {
@@ -503,25 +611,35 @@ export class Chart {
     // vertical grid lines at each whole stability, labelled along the top
     for (let s = Math.ceil(s0); s <= s1; s++) {
       const x = sx(s).toFixed(1);
-      out.push(`<line class="${s === 0 ? "zero" : "grid"}" x1="${x}" x2="${x}" y1="${y0}" y2="${y1}"/>`);
+      out.push(
+        `<line class="${s === 0 ? "zero" : "grid"}" x1="${x}" x2="${x}" y1="${y0}" y2="${y1}"/>`,
+      );
       out.push(`<text x="${x}" y="${y0 - 8}" text-anchor="middle">${s}</text>`);
     }
     // speed rows are bounded by grid lines at the half speeds
     for (let v = Math.ceil(v0 - 0.5) + 0.5; v <= v1; v++) {
       const y = sy(v).toFixed(1);
-      out.push(`<line class="grid" x1="${x0}" x2="${x1}" y1="${y}" y2="${y}"/>`);
+      out.push(
+        `<line class="grid" x1="${x0}" x2="${x1}" y1="${y}" y2="${y}"/>`,
+      );
     }
     for (let v = Math.ceil(v0); v <= v1; v++) {
       if (v % speedStep) continue;
-      out.push(`<text x="${x0 - 10}" y="${sy(v).toFixed(1)}" dy="0.35em" text-anchor="end">${v}</text>`);
+      out.push(
+        `<text x="${x0 - 10}" y="${sy(v).toFixed(1)}" dy="0.35em" text-anchor="end">${v}</text>`,
+      );
     }
 
     const mid = (x0 + x1) / 2;
-    out.push(`<text class="axis-title" x="${mid}" y="20" text-anchor="middle">Stability (Turn + Fade)</text>`);
+    out.push(
+      `<text class="axis-title" x="${mid}" y="20" text-anchor="middle">Stability (Turn + Fade)</text>`,
+    );
     out.push(`<text x="${x0}" y="20">← overstable</text>`);
     out.push(`<text x="${x1}" y="20" text-anchor="end">understable →</text>`);
     const ym = (y0 + y1) / 2;
-    out.push(`<text class="axis-title" transform="translate(18 ${ym}) rotate(-90)" text-anchor="middle">Speed</text>`);
+    out.push(
+      `<text class="axis-title" transform="translate(18 ${ym}) rotate(-90)" text-anchor="middle">Speed</text>`,
+    );
     this.axisLayer.innerHTML = out.join("");
   }
 
@@ -542,12 +660,19 @@ export class Chart {
     if (this.visible > LABEL_LIMIT) return;
     const { sx, sy, x0, x1, y0, y1 } = this.scales(this.dom);
     const R = this.R;
-    const pos = [...this.items.values()].filter((it) => it.toVis).map((it) => ({
-      it,
-      x: sx(stab(it.disc)),
-      y: sy(it.disc.speed) + it.lane,
+    const pos = [...this.items.values()]
+      .filter((it) => it.toVis)
+      .map((it) => ({
+        it,
+        x: sx(stab(it.disc)),
+        y: sy(it.disc.speed) + it.lane,
+      }));
+    const dots = pos.map(({ x, y }) => ({
+      x: x - R,
+      y: y - R,
+      w: 2 * R,
+      h: 2 * R,
     }));
-    const dots = pos.map(({ x, y }) => ({ x: x - R, y: y - R, w: 2 * R, h: 2 * R }));
     const placed = [];
 
     // sort is stable, so within each group labels fall in data order: fastest
