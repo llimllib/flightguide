@@ -11,6 +11,8 @@ Descriptions are two thirds of the database and are only needed when a disc is
 clicked, so they're kept apart and fetched on demand. They're stored as HTML
 but only ever displayed as text, so the markup is stripped here.
 
+popular_molds.txt marks the discs the default view labels; see that file.
+
 Usage: build_json.py [db] [outdir]
 """
 
@@ -94,10 +96,30 @@ def text(html):
     return re.sub(r"\s+", " ", html).strip() or None
 
 
+def load_popular(path):
+    """Read the curated mold list as a set of (brand, model).
+
+    Comments are whole lines starting with #; there's no trailing comment
+    syntax because five models are named things like "#1 Helix".
+    """
+    molds = set()
+    for n, line in enumerate(path.read_text().splitlines(), 1):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        brand, sep, model = line.partition("|")
+        if not sep:
+            sys.exit(f"{path}:{n}: expected 'Brand | Model', got {line!r}")
+        molds.add((brand.strip(), model.strip()))
+    return molds
+
+
 def main():
     here = Path(__file__).parent
     db_path = Path(sys.argv[1]) if len(sys.argv) > 1 else here / "discs.db"
     outdir = Path(sys.argv[2]) if len(sys.argv) > 2 else here / "static" / "data"
+    popular_path = here / "popular_molds.txt"
+    popular = load_popular(popular_path)
 
     db = sqlite3.connect(db_path)
     db.row_factory = sqlite3.Row
@@ -108,9 +130,18 @@ def main():
         for b in BOOLS:
             d[b] = bool(d[b])
         d["category"] = CATEGORIES.get(d["category"], d["category"])
+        if (d["brand"], d["model"]) in popular:
+            d["popular"] = True
         # drop nulls; the frontend treats missing and null the same, and most
         # discs are missing at least one measurement
         discs.append({k: num(v) for k, v in d.items() if v is not None})
+
+    # a mold that matches nothing is a typo, or a disc that went out of
+    # production and left the data; either way, say so rather than quietly
+    # shrinking the default view
+    if unmatched := popular - {(d["brand"], d["model"]) for d in discs}:
+        listing = "\n".join(f"  {b} | {m}" for b, m in sorted(unmatched))
+        sys.exit(f"{popular_path}: {len(unmatched)} molds match no disc:\n{listing}")
 
     descriptions = {}
     for row in db.execute("SELECT id, description FROM discs WHERE description IS NOT NULL"):
@@ -125,6 +156,7 @@ def main():
             json.dump(data, f, separators=(",", ":"))
             f.write("\n")
         print(f"wrote {len(data)} records to {path} ({path.stat().st_size:,} bytes)")
+    print(f"{sum('popular' in d for d in discs)} of {len(discs)} discs marked popular")
 
 
 if __name__ == "__main__":

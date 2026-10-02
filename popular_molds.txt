@@ -1,0 +1,110 @@
+# Popular molds: the labelled foreground of the default view.
+#
+# The chart plots over 1200 discs and 1118 of them share a position with
+# another, so by default only these are drawn solid and labelled, and
+# everything else becomes a ghost behind them. Disc sales are long tailed;
+# this is meant to be the head of it.
+#
+# One "Brand | Model" per line. A line starting with # is a comment. There is
+# no trailing comment syntax, because five models are named like "#1 Helix".
+# build_json.py fails if a line matches no disc, so typos surface at build
+# time. Trimming this file is the way to declutter the default view.
+
+# From OTB's "sort by popularity" listings, page one of each of their four
+# categories, saved in otb.txt. Molds appearing under several plastics or
+# signature runs are the most popular of all: Crave and Hex appeared four
+# times each, Insanity, Trail and Envy three.
+Axiom Discs | Bokeh
+Axiom Discs | Crave
+Axiom Discs | Envy
+Axiom Discs | Fireball
+Axiom Discs | Hex
+Axiom Discs | Insanity
+Axiom Discs | Pixel
+Axiom Discs | Proxy
+Axiom Discs | Pyro
+Axiom Discs | Rhythm
+Axiom Discs | Tempo
+Axiom Discs | Time-Lapse
+Discmania | DD1
+Discmania | Essence
+Discmania | FD
+Discmania | Instinct
+Discmania | Link
+Discmania | Origin
+Discmania | P2
+Discmania | Tactic
+Discraft | Anax
+Discraft | Avenger SS
+Discraft | Buzzz
+Discraft | Buzzz SS
+Discraft | Fierce
+Discraft | Focus
+Discraft | Force
+Discraft | Hades
+Discraft | Heat
+Discraft | Luna
+Discraft | Malta
+Discraft | Meteor
+Discraft | Nuke
+Discraft | Passion
+Discraft | Raptor
+Discraft | Roach
+Discraft | Sol
+Discraft | Stalker
+Discraft | Thrasher
+Discraft | Undertaker
+Discraft | Zeus
+Dynamic Discs | Judge
+Dynamic Discs | Justice
+Dynamic Discs | Warden
+Innova | Aviar P&A
+Innova | Corvette
+Innova | Destroyer
+Innova | Eagle
+Innova | Firebird
+Innova | JK Pro Aviar-X
+Innova | KC Pro Aviar
+Innova | Leopard
+Innova | Leopard3
+Innova | Mako3
+Innova | Mamba
+Innova | Roadrunner
+Innova | Roc
+Innova | Roc3
+Innova | Rollo
+Innova | Shryke
+Innova | Sidewinder
+Innova | Teebird
+Innova | Thunderbird
+Innova | Toro
+Innova | Valkyrie
+Innova | Wraith
+Innova | Yeti Pro Aviar
+Kastaplast | Berg
+Kastaplast | Kaxe (Retooled)
+Kastaplast | Reko
+Kastaplast | Svea
+Latitude 64 | Diamond
+Latitude 64 | Grace
+Latitude 64 | Pure
+Latitude 64 | River
+MVP | Deflector
+MVP | Detour
+MVP | Glitch
+MVP | Photon
+MVP | Reactor
+MVP | Trail
+MVP | Wave
+Millennium | Draco
+Prodigy | PA3
+
+# Not on OTB's first pages, but among the molds Marshall Street stocked the
+# most variants of, which is its own measure of what sells. Listed separately
+# because that signal reflects one shop's buying.
+Discraft | Scorch
+Discraft | Zone
+Dynamic Discs | Escape
+Gateway | Wizard
+Prodigy | M4
+Westside Discs | Harp

@@ -14,6 +14,11 @@
       <input id="q" name="q" type="search" placeholder="Search models…" autocomplete="off" />
 
       <fieldset>
+        <legend>Molds</legend>
+        <label class="check"><input type="checkbox" id="popular" checked /> Popular molds only</label>
+      </fieldset>
+
+      <fieldset>
         <legend>Flight numbers</legend>
         <div id="ranges" class="ranges"></div>
       </fieldset>
@@ -40,6 +45,7 @@
     <main>
       <header id="toolbar">
         <strong id="count"></strong>
+        <span id="relaxed" class="muted" hidden>beyond the popular molds</span>
         <label>
           Color by
           <select id="color" name="color">

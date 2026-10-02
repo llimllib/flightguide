@@ -33,6 +33,9 @@ const colorers = {
   stability: (d) => ({ fill: STABILITY_COLORS[d.stability_group] ?? "#9ca3af", stroke: "#0009" }),
 };
 
+const isTyping = (el) =>
+  el instanceof HTMLElement && (el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName));
+
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const nums = (d) => [d.speed, d.glide, d.turn, d.fade].join(" | ");
@@ -102,6 +105,12 @@ async function init() {
   $("#empty-reset").addEventListener("click", () => chart.setZoom(null));
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !$("#detail").open) chart.setZoom(null);
+    // / jumps to the search box, as long as the reader isn't already typing
+    if (e.key === "/" && !(e.ctrlKey || e.metaKey || e.altKey) && !isTyping(e.target)) {
+      e.preventDefault(); // or the slash lands in the box, and Firefox quick-finds
+      $("#q").focus();
+      $("#q").select();
+    }
   });
 
   filters.addEventListener("submit", (e) => e.preventDefault());
@@ -156,6 +165,7 @@ function filterParams() {
   }
   for (const cb of filters.querySelectorAll("input[type=checkbox][name]:checked")) p.append(cb.name, cb.value);
   if ($("#hide-oop").checked) p.set("oop", "0");
+  if ($("#popular").checked) p.set("popular", "1");
   return p;
 }
 
@@ -164,6 +174,10 @@ function uiParams() {
   // out of production discs are hidden by default, so the URL records showing them
   p.delete("oop");
   if (!$("#hide-oop").checked) p.set("oop", "1");
+  // likewise, only the popular molds are shown by default, so the URL records
+  // having opened it up to everything
+  p.delete("popular");
+  if (!$("#popular").checked) p.set("popular", "0");
   if ($("#color").value !== "brand") p.set("color", $("#color").value);
   if (!$("#ghosts").checked) p.set("ghosts", "0");
   return p;
@@ -188,6 +202,7 @@ function restore(p) {
     cb.checked = p.getAll(cb.name).includes(cb.value);
   }
   $("#hide-oop").checked = p.get("oop") !== "1";
+  $("#popular").checked = p.get("popular") !== "0";
   $("#color").value = p.get("color") ?? "brand";
   $("#ghosts").checked = p.get("ghosts") !== "0";
   $("#brand-search").value = "";
@@ -245,6 +260,7 @@ function applyFilters(p) {
   const categories = new Set(p.getAll("category"));
   const q = (p.get("q") ?? "").toLowerCase();
   const hideOOP = p.get("oop") === "0";
+  const popularOnly = p.get("popular") === "1";
   // only the sliders away from the ends of their track filter anything
   const bounds = RANGES.flatMap(([r, , value]) => {
     const lo = p.get(`${r}_min`);
@@ -256,6 +272,7 @@ function applyFilters(p) {
     if (brands.size && !brands.has(d.brand)) return false;
     if (categories.size && !categories.has(d.category)) return false;
     if (hideOOP && d.out_of_production) return false;
+    if (popularOnly && !d.popular) return false;
     if (q && !d.model.toLowerCase().includes(q) && !(d.pdga_model ?? "").toLowerCase().includes(q)) return false;
     for (const [value, lo, hi] of bounds) {
       const v = value(d);
@@ -281,7 +298,20 @@ function redraw() {
   const params = filterParams();
   $("#clear-brands").hidden = !params.has("brand");
 
-  const discs = applyFilters(params);
+  let discs = applyFilters(params);
+  // the curated foreground is a default, not a constraint. Rather than show an
+  // empty chart and make the reader widen it themselves, fall back to every
+  // disc whenever the popular filter is the only thing hiding matches. The
+  // checkbox stays checked, so clearing the search restores the curated view.
+  let relaxed = false;
+  if (discs.length === 0 && params.has("popular")) {
+    params.delete("popular");
+    const beyond = applyFilters(params);
+    relaxed = beyond.length > 0;
+    if (relaxed) discs = beyond;
+  }
+  $("#relaxed").hidden = !relaxed;
+
   const ids = new Set(discs.map((d) => d.id));
   const ghosts = $("#ghosts").checked ? allDiscs.filter((d) => !ids.has(d.id)) : [];
   chart.setData(discs, ghosts, meta.ranges, colorers[$("#color").value]);
@@ -291,8 +321,9 @@ function redraw() {
   drawLegend(discs);
 }
 
-// showEmpty explains an empty chart: either no discs match the filters, or
-// some do but none are in the zoomed area
+// showEmpty explains an empty chart: either no discs match the filters at all,
+// or some do but none are in the zoomed area. Matches hidden only by the
+// popular filter never get here, because redraw shows them instead.
 function showEmpty(visible) {
   const zoomed = chart.discs.length > 0;
   $("#empty").hidden = visible > 0;
