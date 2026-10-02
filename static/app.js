@@ -19,6 +19,12 @@ const CATEGORY_COLORS = {
   "Control Drivers": "#fb923c",
   "Distance Drivers": "#f87171",
 };
+// the data's category names come from the shop's navigation, where "Midrange
+// Drivers" reads consistently beside its siblings. Here it's just long, so
+// rename it for display; filter values and saved URLs keep the data's name
+const CATEGORY_LABELS = { "Midrange Drivers": "Midranges" };
+const catLabel = (c) => CATEGORY_LABELS[c] ?? c;
+
 const STABILITY_COLORS = {
   "very overstable": "#f97316",
   overstable: "#facc15",
@@ -78,7 +84,9 @@ async function init() {
   meta = buildMeta(allDiscs);
 
   $("#categories").innerHTML = meta.categories
-    .map((c) => `<label class="check"><input type="checkbox" name="category" value="${esc(c)}"> ${esc(c)}</label>`)
+    .map(
+      (c) => `<label class="check"><input type="checkbox" name="category" value="${esc(c)}"> ${esc(catLabel(c))}</label>`,
+    )
     .join("");
   $("#brands").innerHTML = meta.brands
     .map(
@@ -343,7 +351,7 @@ function drawLegend(discs = legendDiscs) {
   }
   const mode = $("#color").value;
   let entries = [];
-  if (mode === "category") entries = Object.entries(CATEGORY_COLORS).map(([k, c]) => [k, c, "#0009"]);
+  if (mode === "category") entries = Object.entries(CATEGORY_COLORS).map(([k, c]) => [catLabel(k), c, "#0009"]);
   else if (mode === "stability") entries = Object.entries(STABILITY_COLORS).map(([k, c]) => [k, c, "#0009"]);
   else {
     const brands = new Set(discs.map((d) => d.brand));
@@ -366,7 +374,7 @@ function showTooltip(d, e) {
     return;
   }
   const extra = [
-    d.category,
+    catLabel(d.category),
     d.stability && `grade ${d.stability} (${d.stability_group})`,
     d.out_of_production && "out of production",
   ].filter(Boolean);
@@ -396,7 +404,7 @@ function describe(d) {
 // click; when the filters leave a single disc, so does the chart.
 function detailCard(d, desc) {
   const specs = [
-    ["Category", d.category],
+    ["Category", catLabel(d.category)],
     ["Stability", d.stability && `${d.stability} (${d.stability_group})`],
     ["PDGA name", d.pdga_model],
     ["Diameter", d.diameter_cm && `${d.diameter_cm} cm`],
