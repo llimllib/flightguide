@@ -245,7 +245,6 @@ function applyFilters(p) {
   const categories = new Set(p.getAll("category"));
   const q = (p.get("q") ?? "").toLowerCase();
   const hideOOP = p.get("oop") === "0";
-  const inStock = p.get("in_stock") === "1";
   // only the sliders away from the ends of their track filter anything
   const bounds = RANGES.flatMap(([r, , value]) => {
     const lo = p.get(`${r}_min`);
@@ -257,7 +256,6 @@ function applyFilters(p) {
     if (brands.size && !brands.has(d.brand)) return false;
     if (categories.size && !categories.has(d.category)) return false;
     if (hideOOP && d.out_of_production) return false;
-    if (inStock && !(d.in_stock_products > 0)) return false;
     if (q && !d.model.toLowerCase().includes(q) && !(d.pdga_model ?? "").toLowerCase().includes(q)) return false;
     for (const [value, lo, hi] of bounds) {
       const v = value(d);
@@ -339,7 +337,6 @@ function showTooltip(d, e) {
     d.category,
     d.stability && `grade ${d.stability} (${d.stability_group})`,
     d.out_of_production && "out of production",
-    d.in_stock_products ? `${d.in_stock_products} in stock` : "not in stock",
   ].filter(Boolean);
   tip.innerHTML = `<strong>${esc(d.model)}</strong> <span class="muted">${esc(d.brand)}</span>
     <div class="nums">${nums(d)}</div>
@@ -372,7 +369,6 @@ async function showDetail(d) {
     ["Rim thickness", d.rim_thickness_cm && `${d.rim_thickness_cm} cm`],
     ["Max weight", d.max_weight_g && `${d.max_weight_g} g`],
     ["PDGA approved", d.pdga_approved_date],
-    ["In stock", d.in_stock_products ? `${d.in_stock_products} products${d.on_sale ? ", on sale" : ""}` : "no"],
     ["Out of production", d.out_of_production ? "yes" : null],
   ].filter(([, v]) => v);
   $("#detail-body").innerHTML = `

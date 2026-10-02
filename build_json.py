@@ -21,9 +21,11 @@ import sys
 from html.parser import HTMLParser
 from pathlib import Path
 
-# every column but description and in_stock_choices, which nothing displays
+# the columns the site shows. discs.db also carries Marshall Street's stock
+# counts (in_stock_products, in_stock_choices, on_sale), which this site has no
+# business reporting, and description, which goes to its own file below.
 COLUMNS = """id, brand, model, pdga_model, category, speed, glide, turn, fade,
-    stability, stability_group, out_of_production, in_stock_products, on_sale,
+    stability, stability_group, out_of_production,
     bg_color, text_color, link, image, diameter_cm, height_cm, rim_depth_cm,
     rim_thickness_cm, max_weight_g, pdga_approved_date"""
 
@@ -31,7 +33,12 @@ COLUMNS = """id, brand, model, pdga_model, category, speed, glide, turn, fade,
 # frontend relies on it: filtering the array preserves it, so app.js never sorts.
 ORDER = "speed DESC, turn + fade DESC, brand, model"
 
-BOOLS = ("out_of_production", "on_sale")
+BOOLS = ("out_of_production",)
+
+# Marshall Street files one disc under a category of its own, "Disc Golf Sets",
+# which the site has no use for as a filter. Its speed puts it with the distance
+# drivers. Fixed here rather than in discs.db, which mirrors the source.
+CATEGORIES = {"Disc Golf Sets": "Distance Drivers"}
 
 
 def num(v):
@@ -100,6 +107,7 @@ def main():
         d = dict(row)
         for b in BOOLS:
             d[b] = bool(d[b])
+        d["category"] = CATEGORIES.get(d["category"], d["category"])
         # drop nulls; the frontend treats missing and null the same, and most
         # discs are missing at least one measurement
         discs.append({k: num(v) for k, v in d.items() if v is not None})

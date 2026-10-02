@@ -531,8 +531,8 @@ export class Chart {
 
   // drawLabels places each label below, above, right or left of its dot,
   // skipping any label that would collide with another label or dot. Discs
-  // with the most stock at Marshall Street, a stand-in for popularity, are
-  // labelled first, so they win when labels compete for space.
+  // still in production are labelled first, so they win when labels compete
+  // for space.
   drawLabels() {
     this.labelLayer.replaceChildren();
     for (const it of this.items.values()) it.label = null;
@@ -548,8 +548,12 @@ export class Chart {
     const placed = [];
     const hits = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
+    // sort is stable, so within each group labels fall in data order: fastest
+    // and most overstable first. With out of production discs hidden, as they
+    // are by default, that's the whole order.
+    const oop = (i) => (pos[i].it.disc.out_of_production ? 1 : 0);
     const order = pos.map((_, i) => i);
-    order.sort((a, b) => (pos[b].it.disc.in_stock_products ?? 0) - (pos[a].it.disc.in_stock_products ?? 0));
+    order.sort((a, b) => oop(a) - oop(b));
 
     for (const i of order) {
       const { it, x, y } = pos[i];
