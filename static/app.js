@@ -1,4 +1,5 @@
 import { Chart } from "./chart.js";
+import { flightPath } from "./flight.js";
 
 const $ = (s) => document.querySelector(s);
 const filters = $("#filters");
@@ -44,7 +45,63 @@ const isTyping = (el) =>
 
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"']/gu, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
-const nums = (d) => [d.speed, d.glide, d.turn, d.fade].join(" | ");
+
+// the four flight numbers, which we label rather than printing bare: "12 | 5 |
+// -1 | 3" only reads to someone who already knows the order
+const RATINGS = [
+  ["Speed", (d) => d.speed],
+  ["Glide", (d) => d.glide],
+  ["Turn", (d) => d.turn],
+  ["Fade", (d) => d.fade],
+];
+const ratings = (d) =>
+  `<div class="ratings">${RATINGS.map(([name, value]) => `<div><span>${name}</span><b>${esc(value(d))}</b></div>`).join("")}</div>`;
+
+// the data's stability_group is already plain English. Marshall Street's A-Q
+// grade isn't, and means nothing away from their chart, so we don't show it
+const stability = (d) => d.stability_group?.replace(/^./u, (c) => c.toUpperCase());
+
+// which hand the estimated flight path is drawn for; "it finishes left" is
+// wrong for a third of players
+let hand = "r";
+
+// flightFigure draws the estimated path. The SVG's units are feet with the tee
+// at the origin, so the geometry needs no conversion on the way in
+function flightFigure(d) {
+  const f = flightPath(d, hand);
+  const side = f.land.x < 0 ? "left" : "right";
+  const label = `Estimated flight path: carries about ${f.dist} feet and finishes about ${Math.abs(Math.round(f.land.x))} feet ${side}`;
+  return `<figure class="flight" data-disc="${esc(d.id)}">
+    <svg viewBox="${f.viewBox}" preserveAspectRatio="xMidYMax meet" role="img" aria-label="${esc(label)}">
+      <line class="flight-centre" x1="0" y1="0" x2="0" y2="${-f.max}" />
+      <path class="flight-line" d="${f.path}" />
+      <circle class="flight-land" cx="${f.land.x.toFixed(1)}" cy="${f.land.y.toFixed(1)}" r="11" />
+      <circle class="flight-tee" cx="0" cy="0" r="7" />
+    </svg>
+    <figcaption>
+      <span>Estimated backhand path · about ${f.dist} ft</span>
+      <span class="hand-toggle" role="group" aria-label="Throwing hand">
+        <button type="button" data-hand="r" aria-pressed="${hand === "r"}">Right</button>
+        <button type="button" data-hand="l" aria-pressed="${hand === "l"}">Left</button>
+      </span>
+    </figcaption>
+  </figure>`;
+}
+
+// redrawFlights repoints every path on the page after the hand changes, rather
+// than re-rendering the cards around them
+function redrawFlights() {
+  for (const fig of document.querySelectorAll(".flight")) {
+    const d = allDiscs.find((x) => String(x.id) === fig.dataset.disc);
+    if (!d) continue;
+    const f = flightPath(d, hand);
+    fig.querySelector(".flight-line").setAttribute("d", f.path);
+    const land = fig.querySelector(".flight-land");
+    land.setAttribute("cx", f.land.x.toFixed(1));
+    land.setAttribute("cy", f.land.y.toFixed(1));
+    for (const b of fig.querySelectorAll("[data-hand]")) b.setAttribute("aria-pressed", b.dataset.hand === hand);
+  }
+}
 
 async function getJSON(url) {
   const res = await fetch(url);
@@ -111,6 +168,14 @@ async function init() {
   });
   $("#reset-zoom").addEventListener("click", () => chart.setZoom(null));
   $("#empty-reset").addEventListener("click", () => chart.setZoom(null));
+  // the toggle lives inside cards that are rebuilt as discs are opened
+  document.addEventListener("click", (e) => {
+    const pick = e.target.closest?.("[data-hand]");
+    if (!pick || pick.dataset.hand === hand) return;
+    hand = pick.dataset.hand;
+    redrawFlights();
+    saveURL();
+  });
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && !$("#detail").open) chart.setZoom(null);
     // / jumps to the search box, as long as the reader isn't already typing
@@ -188,6 +253,7 @@ function uiParams() {
   if (!$("#popular").checked) p.set("popular", "0");
   if ($("#color").value !== "brand") p.set("color", $("#color").value);
   if (!$("#ghosts").checked) p.set("ghosts", "0");
+  if (hand !== "r") p.set("hand", hand);
   return p;
 }
 
@@ -213,6 +279,7 @@ function restore(p) {
   $("#popular").checked = p.get("popular") !== "0";
   $("#color").value = p.get("color") ?? "brand";
   $("#ghosts").checked = p.get("ghosts") !== "0";
+  hand = p.get("hand") === "l" ? "l" : "r";
   $("#brand-search").value = "";
   filterBrandList("");
 }
@@ -367,20 +434,25 @@ function drawLegend(discs = legendDiscs) {
     .join("");
 }
 
+// the tooltip is rebuilt only when the disc changes, since showTooltip is
+// called again on every pointer move to reposition it
+let tipId = null;
+
 function showTooltip(d, e) {
   const tip = $("#tooltip");
   if (!d) {
     tip.hidden = true;
+    tipId = null;
     return;
   }
-  const extra = [
-    catLabel(d.category),
-    d.stability && `grade ${d.stability} (${d.stability_group})`,
-    d.out_of_production && "out of production",
-  ].filter(Boolean);
-  tip.innerHTML = `<strong>${esc(d.model)}</strong> <span class="muted">${esc(d.brand)}</span>
-    <div class="nums">${nums(d)}</div>
-    <div class="muted">${extra.map(esc).join(" · ")}</div>`;
+  if (d.id !== tipId) {
+    tipId = d.id;
+    const extra = [catLabel(d.category), stability(d), d.out_of_production && "out of production"].filter(Boolean);
+    tip.innerHTML = `<strong>${esc(d.model)}</strong> <span class="muted">${esc(d.brand)}</span>
+      ${ratings(d)}
+      <div class="muted">${extra.map(esc).join(" · ")}</div>
+      ${flightFigure(d)}`;
+  }
   tip.hidden = false;
   const box = tip.parentElement.getBoundingClientRect();
   let x = e.clientX - box.left + 14;
@@ -405,7 +477,7 @@ function describe(d) {
 function detailCard(d, desc) {
   const specs = [
     ["Category", catLabel(d.category)],
-    ["Stability", d.stability && `${d.stability} (${d.stability_group})`],
+    ["Stability", stability(d)],
     ["PDGA name", d.pdga_model],
     ["Diameter", d.diameter_cm && `${d.diameter_cm} cm`],
     ["Height", d.height_cm && `${d.height_cm} cm`],
@@ -415,11 +487,14 @@ function detailCard(d, desc) {
     ["PDGA approved", d.pdga_approved_date],
     ["Out of production", d.out_of_production ? "yes" : null],
   ].filter(([, v]) => v);
+  // Marshall Street's per-disc image is a flight curve derived from these same
+  // four numbers, bolted to a spec table we already render below, so we draw
+  // our own rather than hotlinking theirs
   return `
-    ${d.image ? `<img src="${esc(d.image)}" alt="">` : ""}
+    ${flightFigure(d)}
     <h2>${esc(d.model)}</h2>
     <div class="muted">${esc(d.brand)}</div>
-    <p class="nums" title="speed | glide | turn | fade">${nums(d)}</p>
+    ${ratings(d)}
     <dl>${specs.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>
     ${desc ? `<p>${esc(desc)}</p>` : ""}
     ${d.link ? `<p><a href="${esc(d.link)}" target="_blank" rel="noopener">View at Marshall Street →</a></p>` : ""}`;
