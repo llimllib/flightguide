@@ -278,7 +278,8 @@ main {
 }
 
 /* the svg is positioned absolutely so its size, set from the container's,
-   never feeds back into the container's */
+   never feeds back into the container's. Only the plot's own svg: the single
+   disc panel lives in here too, and its flight path must stay in its flow */
 #chart {
   flex: 1;
   min-height: 0;
@@ -286,7 +287,7 @@ main {
   overflow: auto;
 }
 
-#chart svg {
+#chart > svg {
   position: absolute;
   top: 0;
   left: 0;
