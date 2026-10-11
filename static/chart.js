@@ -187,7 +187,9 @@ export class Chart {
       // a brush that ends over a disc still fires a click there
       if (this.brushed) return;
       const it = this.hitTest(e);
-      if (it) onClick(it.disc);
+      // a click on empty space is reported too, as null, so a touch can
+      // dismiss whatever its last tap opened
+      onClick(it?.disc ?? null, { touch: this.pointerType === "touch" });
     });
     this.svg.addEventListener("pointermove", (e) => {
       this.brushMove(e);
@@ -381,6 +383,9 @@ export class Chart {
   // through as a tap
   brushStart(e) {
     this.brushed = false;
+    // remembered for the click that follows, since Safari's click events
+    // don't say what kind of pointer made them
+    this.pointerType = e.pointerType;
     if (e.button !== 0 || !this.dom) return;
     if (e.pointerType !== "touch" && this.hitTest(e)) return;
     const p = this.local(e);
@@ -782,9 +787,17 @@ export class Chart {
     }
   }
 
-  highlight(it) {
+  // pin keeps disc highlighted when nothing is hovered, or stops if it's null.
+  // A tapped disc stays lit while the card it opened is showing
+  pin(disc) {
+    this.pinned = disc;
+    this.highlight(this.hovered);
+  }
+
+  highlight(hovered) {
     this.lineLayer.querySelector(".hover")?.classList.remove("hover");
     this.dotLayer.querySelector(".hover")?.classList.remove("hover");
+    const it = hovered ?? (this.pinned && this.items.get(this.pinned.id));
     if (!it) return;
     it.lines.classList.add("hover");
     it.dot.classList.add("hover");

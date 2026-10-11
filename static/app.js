@@ -159,7 +159,7 @@ async function init() {
 
   chart = new Chart($("#chart"), {
     onHover: showTooltip,
-    onClick: showDetail,
+    onClick: clickDisc,
     onZoom: (zoomed) => {
       $("#reset-zoom").hidden = !zoomed;
       $("#zoom-hint").hidden = zoomed;
@@ -179,9 +179,11 @@ async function init() {
     saveURL();
   });
   document.addEventListener("keydown", (e) => {
-    // Esc closes the topmost thing: a dialog closes itself, then the drawer
+    // Esc closes the topmost thing: a dialog closes itself, then the drawer,
+    // then the peek card
     if (e.key === "Escape" && !document.querySelector("dialog[open]")) {
       if (document.body.classList.contains("drawer-open")) setDrawer(false);
+      else if (peekDisc) showPeek(null);
       else chart.setZoom(null);
     }
     // / jumps to the search box, as long as the reader isn't already typing
@@ -226,6 +228,13 @@ async function init() {
     update();
   });
   $("#about-link").addEventListener("click", () => $("#about").showModal());
+  $("#peek").addEventListener("click", (e) => {
+    if (e.target.closest(".peek-details")) showDetail(peekDisc);
+    else if (e.target.closest(".peek-close")) showPeek(null);
+  });
+  $("#inline-detail").addEventListener("click", (e) => {
+    if (e.target.closest(".expand")) expandSingle(!$("#inline-detail").classList.contains("expanded"));
+  });
   $("#open-filters").addEventListener("click", () => setDrawer(true));
   $("#show-discs").addEventListener("click", () => setDrawer(false));
   $("#drawer-backdrop").addEventListener("click", () => setDrawer(false));
@@ -408,6 +417,7 @@ function redraw() {
   showSingle(discs.length === 1 ? discs[0] : null);
 
   const ids = new Set(discs.map((d) => d.id));
+  if (peekDisc && !ids.has(peekDisc.id)) showPeek(null);
   const ghosts = $("#ghosts").checked ? allDiscs.filter((d) => !ids.has(d.id)) : [];
   chart.setData(discs, ghosts, meta.ranges, colorers[$("#color").value]);
 
@@ -484,6 +494,44 @@ function drawLegend(discs = legendDiscs) {
     .join("");
 }
 
+// summary is a disc at a glance, for the tooltip a mouse gets and the peek card
+// a touch gets
+function summary(d) {
+  const extra = [catLabel(d.category), stability(d), d.out_of_production && "out of production"].filter(Boolean);
+  return `<strong>${esc(d.model)}</strong> <span class="muted">${esc(d.brand)}</span>
+    ${ratings(d)}
+    <div class="muted">${extra.map(esc).join(" · ")}</div>`;
+}
+
+// clickDisc opens a clicked disc. A mouse gets the full card at once. A tap
+// gets a peek card docked under the chart instead, so a reader can tap through
+// several discs without a modal hiding the chart each time; tapping empty space
+// puts it away. When the filters leave one disc, the chart is already showing
+// its card, so a tap on the disc opens that card up.
+function clickDisc(d, { touch }) {
+  if (!touch) {
+    if (d) showDetail(d);
+    return;
+  }
+  if (d && d.id === singleId) return expandSingle(true);
+  showPeek(d);
+}
+
+let peekDisc = null;
+function showPeek(d) {
+  peekDisc = d;
+  chart.pin(d);
+  const peek = $("#peek");
+  peek.hidden = !d;
+  if (!d) return;
+  peek.innerHTML = `<div class="peek-text">${summary(d)}</div>
+    ${flightFigure(d)}
+    <div class="peek-actions">
+      <button type="button" class="peek-details">Details</button>
+      <button type="button" class="peek-close" aria-label="Close">×</button>
+    </div>`;
+}
+
 // the tooltip is rebuilt only when the disc changes, since showTooltip is
 // called again on every pointer move to reposition it
 let tipId = null;
@@ -497,11 +545,7 @@ function showTooltip(d, e) {
   }
   if (d.id !== tipId) {
     tipId = d.id;
-    const extra = [catLabel(d.category), stability(d), d.out_of_production && "out of production"].filter(Boolean);
-    tip.innerHTML = `<strong>${esc(d.model)}</strong> <span class="muted">${esc(d.brand)}</span>
-      ${ratings(d)}
-      <div class="muted">${extra.map(esc).join(" · ")}</div>
-      ${flightFigure(d)}`;
+    tip.innerHTML = `${summary(d)}${flightFigure(d)}`;
   }
   tip.hidden = false;
   const box = tip.parentElement.getBoundingClientRect();
@@ -569,10 +613,28 @@ async function showSingle(d) {
   }
   if (d.id === singleId) return;
   singleId = d.id;
+  panel.classList.remove("expanded");
   // render at once, then fill the description in when it arrives
-  panel.innerHTML = detailCard(d, "");
+  panel.innerHTML = singleCard(d, "");
   const desc = await describe(d);
-  if (singleId === d.id) panel.innerHTML = detailCard(d, desc);
+  if (singleId === d.id) panel.innerHTML = singleCard(d, desc);
+}
+
+// on a phone the single disc panel is docked under the chart, showing only the
+// disc's name and numbers until it's expanded. Wider screens never show the
+// button, and always show the whole card
+function singleCard(d, desc) {
+  const open = $("#inline-detail").classList.contains("expanded");
+  return `${detailCard(d, desc)}
+    <button type="button" class="expand" aria-expanded="${open}">${open ? "Less" : "More"}</button>`;
+}
+
+function expandSingle(open) {
+  const panel = $("#inline-detail");
+  panel.classList.toggle("expanded", open);
+  const button = panel.querySelector(".expand");
+  button?.setAttribute("aria-expanded", open);
+  if (button) button.textContent = open ? "Less" : "More";
 }
 
 init();

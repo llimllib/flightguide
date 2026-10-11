@@ -660,6 +660,68 @@ main {
   font-size: 18px;
 }
 
+/* only a phone collapses the single disc panel */
+#inline-detail .expand {
+  display: none;
+}
+
+/* the card a tap on a disc opens, docked at the foot of the chart: the
+   tooltip's summary, its flight beside it, and a way to the full card */
+#peek {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 8px;
+  z-index: 3;
+  max-width: 480px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  background: #0b0d12f2;
+  border: 1px solid var(--grid);
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+#peek[hidden] {
+  display: none;
+}
+
+#peek .flight {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  width: 64px;
+}
+
+#peek .flight svg {
+  height: 120px;
+}
+
+#peek .flight figcaption,
+#peek .flight-tee {
+  display: none;
+}
+
+.peek-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.peek-details {
+  padding: 8px 16px;
+}
+
+.peek-close {
+  margin-left: auto;
+  background: none;
+  font-size: 22px;
+  line-height: 1;
+  padding: 4px 10px;
+}
+
 /* the narrow screen layout's parts, which a wide screen doesn't use */
 .bar-title,
 #open-filters,
@@ -794,5 +856,85 @@ main {
 
   #filter-badge[hidden] {
     display: none;
+  }
+
+  /* the full card is a sheet covering the screen, with its close button kept
+     in reach however far it's scrolled */
+  #detail {
+    width: 100vw;
+    max-width: 100vw;
+    height: 100dvh;
+    max-height: 100dvh;
+    margin: 0;
+    border: none;
+    border-radius: 0;
+    padding: 0 16px 24px;
+  }
+
+  #detail > form {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: flex;
+    justify-content: flex-end;
+    margin: 0 -16px;
+    padding: 6px 8px;
+    background: var(--panel);
+  }
+
+  #detail .close {
+    float: none;
+    padding: 6px 12px;
+  }
+
+  /* as in the single disc panel: the flight path gets its own row, under the
+     four numbers it's drawn from */
+  #detail-body {
+    display: flex;
+    flex-direction: column;
+  }
+
+  #detail-body > * {
+    order: 1;
+  }
+
+  #detail-body > :is(h2, .muted, .ratings) {
+    order: 0;
+  }
+
+  #detail-body .flight {
+    float: none;
+    width: auto;
+    margin: 4px 0 8px;
+  }
+
+  #detail-body .flight svg {
+    height: 200px;
+  }
+
+  /* the single disc panel docks at the chart's foot like the peek card, showing
+     just the disc's name and numbers until it's expanded */
+  #inline-detail {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    width: auto;
+    max-height: 45%;
+  }
+
+  #inline-detail.expanded {
+    max-height: calc(100% - 16px);
+  }
+
+  #inline-detail:not(.expanded) > :not(h2, .muted, .ratings, .expand) {
+    display: none;
+  }
+
+  #inline-detail .expand {
+    display: block;
+    align-self: flex-start;
+    order: 0;
+    margin-top: 4px;
   }
 }
