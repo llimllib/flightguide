@@ -199,6 +199,8 @@ async function init() {
     if (e.target.id === "brand-search") return filterBrandList(e.target.value);
     // in the drawer, the display controls are inside the form but handled below
     if (e.target.closest("#display")) return;
+    // ticking or unticking it by hand is a choice to keep
+    if (e.target.id === "popular") popularAuto = false;
     const range = e.target.closest(".range");
     if (range) syncSlider(range.dataset.range);
     update();
@@ -272,10 +274,10 @@ function uiParams() {
   // out of production discs are hidden by default, so the URL records showing them
   p.delete("oop");
   if (!$("#hide-oop").checked) p.set("oop", "1");
-  // likewise, only the popular molds are shown by default, so the URL records
-  // having opened it up to everything
+  // the popular filter follows the others unless it's been set by hand, so the
+  // URL only records it then
   p.delete("popular");
-  if (!$("#popular").checked) p.set("popular", "0");
+  if (!popularAuto) p.set("popular", $("#popular").checked ? "1" : "0");
   if ($("#color").value !== "brand") p.set("color", $("#color").value);
   if (!$("#ghosts").checked) p.set("ghosts", "0");
   if (hand !== "r") p.set("hand", hand);
@@ -301,7 +303,9 @@ function restore(p) {
     cb.checked = p.getAll(cb.name).includes(cb.value);
   }
   $("#hide-oop").checked = p.get("oop") !== "1";
+  popularAuto = !p.has("popular");
   $("#popular").checked = p.get("popular") !== "0";
+  syncPopular();
   $("#color").value = p.get("color") ?? "brand";
   $("#ghosts").checked = p.get("ghosts") !== "0";
   hand = p.get("hand") === "l" ? "l" : "r";
@@ -395,6 +399,7 @@ function update() {
 }
 
 function redraw() {
+  syncPopular();
   saveURL();
   const params = filterParams();
   $("#clear-brands").hidden = !params.has("brand");
@@ -430,15 +435,30 @@ function redraw() {
   drawLegend(discs);
 }
 
-// filtersChanged counts the filter controls that differ from their defaults,
-// for the badge on the narrow screen's Filters button. A group of checkboxes
-// counts once, however many of it are ticked.
-function filtersChanged(p) {
+// ownFilters counts the filters the reader has set, leaving out the popular
+// filter. A group of checkboxes counts once, however many of it are ticked.
+function ownFilters(p) {
   const ranges = RANGES.filter(([r]) => p.has(`${r}_min`) || p.has(`${r}_max`)).length;
-  return (
-    ranges +
-    [p.has("q"), p.has("category"), p.has("brand"), !p.has("oop"), !p.has("popular")].filter(Boolean).length
-  );
+  return ranges + [p.has("q"), p.has("category"), p.has("brand"), !p.has("oop")].filter(Boolean).length;
+}
+
+// "Popular molds only" curates the opening page, but once a reader filters for
+// something of their own it hides most of what they asked for: Latitude 64
+// seems to make 4 discs rather than 56. So until the box is ticked or unticked
+// by hand, it follows the other filters: on while there are none, and off as
+// soon as there are. Zooming isn't a filter, so a brush leaves it alone
+let popularAuto = true;
+
+function syncPopular() {
+  if (popularAuto) $("#popular").checked = ownFilters(filterParams()) === 0;
+}
+
+// filtersChanged counts the filter controls that differ from their defaults,
+// for the badge on the narrow screen's Filters button. The popular filter only
+// counts when it's been set by hand against what it would be automatically
+function filtersChanged(p) {
+  const own = ownFilters(p);
+  return own + (!popularAuto && p.has("popular") !== (own === 0) ? 1 : 0);
 }
 
 // on a narrow screen the filters are a drawer, and the toolbar's display
