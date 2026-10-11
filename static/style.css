@@ -32,6 +32,11 @@ h1 {
   margin: 0 0 12px;
 }
 
+/* focusable only so the drawer can take focus when it opens */
+#filters:focus {
+  outline: none;
+}
+
 #filters {
   background: var(--panel);
   padding: 16px;
@@ -264,7 +269,15 @@ main {
   line-height: 20px;
 }
 
+/* the display controls are a group only so a narrow screen can move them into
+   the filters drawer; here they sit in the toolbar as if ungrouped, with the
+   legend, which is often empty, at the end */
+#display {
+  display: contents;
+}
+
 #legend {
+  order: 1;
   display: flex;
   flex-wrap: wrap;
   gap: 4px 12px;
@@ -503,9 +516,17 @@ main {
   color: var(--muted);
 }
 
-/* detail dialog */
+/* the about link sits at the foot of the sidebar, or after the brands when
+   they're long enough to scroll */
+#about-link {
+  margin-top: auto;
+  align-self: flex-start;
+}
 
-#detail {
+/* detail and about dialogs */
+
+#detail,
+#about {
   background: var(--panel);
   color: var(--text);
   border: 1px solid var(--grid);
@@ -514,11 +535,13 @@ main {
   padding: 20px;
 }
 
-#detail::backdrop {
+#detail::backdrop,
+#about::backdrop {
   background: #0008;
 }
 
-#detail .close {
+#detail .close,
+#about .close {
   float: right;
   font-size: 20px;
   line-height: 1;
@@ -624,4 +647,141 @@ main {
 
 #inline-detail h2 {
   font-size: 18px;
+}
+
+/* the narrow screen layout's parts, which a wide screen doesn't use */
+.bar-title,
+#open-filters,
+#display-fieldset,
+#show-discs,
+#drawer-backdrop {
+  display: none;
+}
+
+/* a phone: the chart gets the whole screen, and the filters become a drawer
+   from the left, opened from a compact top bar. See
+   docs/plans/2026-10-05-mobile-design.md */
+@media (max-width: 700px) {
+  /* dvh, since on iOS vh includes the area behind the address bar, and would
+     push the chart's bottom edge off screen */
+  body {
+    grid-template-columns: 1fr;
+    height: 100dvh;
+  }
+
+  #filters {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 20;
+    width: min(320px, 85vw);
+    padding-bottom: 0;
+    translate: -100%;
+    visibility: hidden;
+    transition:
+      translate 0.2s ease,
+      visibility 0s 0.2s;
+  }
+
+  body.drawer-open #filters {
+    translate: 0;
+    visibility: visible;
+    transition: translate 0.2s ease;
+  }
+
+  body.drawer-open #drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 19;
+    background: #0008;
+  }
+
+  #display-fieldset {
+    display: block;
+  }
+
+  /* in the drawer the display controls stack, one per line */
+  #display {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .key-text {
+    margin-left: 0;
+  }
+
+  /* pinned to the drawer's foot, however far the brands have scrolled it */
+  #show-discs {
+    display: block;
+    position: sticky;
+    bottom: 0;
+    margin: 0 -16px;
+    padding: 12px;
+    border-radius: 0;
+    background: var(--accent);
+    color: var(--bg);
+    font-weight: 600;
+  }
+
+  #toolbar {
+    flex-wrap: nowrap;
+    gap: 10px;
+    padding: 8px 12px;
+  }
+
+  .bar-title {
+    display: inline;
+    white-space: nowrap;
+  }
+
+  /* the count gives way first when a zoomed bar runs short of room */
+  #count {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-weight: normal;
+    color: var(--muted);
+    font-size: 13px;
+    white-space: nowrap;
+  }
+
+  #relaxed,
+  #zoom-hint,
+  .esc-hint {
+    display: none;
+  }
+
+  #reset-zoom {
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
+  #open-filters {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-left: auto;
+  }
+
+  #reset-zoom:not([hidden]) + #open-filters {
+    margin-left: 0;
+  }
+
+  #filter-badge {
+    min-width: 18px;
+    padding: 0 5px;
+    border-radius: 9px;
+    background: var(--accent);
+    color: var(--bg);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 18px;
+    text-align: center;
+  }
+
+  #filter-badge[hidden] {
+    display: none;
+  }
 }

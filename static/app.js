@@ -179,7 +179,11 @@ async function init() {
     saveURL();
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !$("#detail").open) chart.setZoom(null);
+    // Esc closes the topmost thing: a dialog closes itself, then the drawer
+    if (e.key === "Escape" && !document.querySelector("dialog[open]")) {
+      if (document.body.classList.contains("drawer-open")) setDrawer(false);
+      else chart.setZoom(null);
+    }
     // / jumps to the search box, as long as the reader isn't already typing
     if (e.key === "/" && !(e.ctrlKey || e.metaKey || e.altKey) && !isTyping(e.target)) {
       e.preventDefault(); // or the slash lands in the box, and Firefox quick-finds
@@ -191,6 +195,8 @@ async function init() {
   filters.addEventListener("submit", (e) => e.preventDefault());
   filters.addEventListener("input", (e) => {
     if (e.target.id === "brand-search") return filterBrandList(e.target.value);
+    // in the drawer, the display controls are inside the form but handled below
+    if (e.target.closest("#display")) return;
     const range = e.target.closest(".range");
     if (range) syncSlider(range.dataset.range);
     update();
@@ -204,7 +210,7 @@ async function init() {
     filters.elements[`${r}_min`].value = lo;
     filters.elements[`${r}_max`].value = hi;
   });
-  $("#toolbar").addEventListener("change", (e) => {
+  $("#display").addEventListener("change", (e) => {
     if (e.target.id === "color") {
       chart.recolor(colorers[e.target.value]);
       drawLegend();
@@ -219,9 +225,17 @@ async function init() {
     restore(new URLSearchParams());
     update();
   });
-  $("#detail").addEventListener("click", (e) => {
-    if (e.target === e.currentTarget) e.currentTarget.close();
-  });
+  $("#about-link").addEventListener("click", () => $("#about").showModal());
+  $("#open-filters").addEventListener("click", () => setDrawer(true));
+  $("#show-discs").addEventListener("click", () => setDrawer(false));
+  $("#drawer-backdrop").addEventListener("click", () => setDrawer(false));
+  narrow.addEventListener("change", placeDisplay);
+  placeDisplay();
+  for (const dialog of document.querySelectorAll("dialog")) {
+    dialog.addEventListener("click", (e) => {
+      if (e.target === e.currentTarget) e.currentTarget.close();
+    });
+  }
 
   update();
 }
@@ -375,6 +389,8 @@ function redraw() {
   saveURL();
   const params = filterParams();
   $("#clear-brands").hidden = !params.has("brand");
+  // counted now, before params loses the popular filter below
+  const changed = filtersChanged(params);
 
   let discs = applyFilters(params);
   // the curated foreground is a default, not a constraint. Rather than show an
@@ -397,7 +413,43 @@ function redraw() {
 
   $("#count").textContent =
     discs.length === allDiscs.length ? `${discs.length} discs` : `${discs.length} of ${allDiscs.length} discs`;
+  $("#show-discs").textContent = `Show ${discs.length} ${discs.length === 1 ? "disc" : "discs"}`;
+  $("#filter-badge").hidden = !changed;
+  $("#filter-badge").textContent = changed;
+  $("#open-filters").setAttribute("aria-label", changed ? `Filters, ${changed} active` : "Filters");
   drawLegend(discs);
+}
+
+// filtersChanged counts the filter controls that differ from their defaults,
+// for the badge on the narrow screen's Filters button. A group of checkboxes
+// counts once, however many of it are ticked.
+function filtersChanged(p) {
+  const ranges = RANGES.filter(([r]) => p.has(`${r}_min`) || p.has(`${r}_max`)).length;
+  return (
+    ranges +
+    [p.has("q"), p.has("category"), p.has("brand"), !p.has("oop"), !p.has("popular")].filter(Boolean).length
+  );
+}
+
+// on a narrow screen the filters are a drawer, and the toolbar's display
+// controls move into it, since they're settings rather than something to watch
+const narrow = matchMedia("(max-width: 700px)");
+
+function placeDisplay() {
+  if (narrow.matches) $("#display-fieldset").append($("#display"));
+  else $("#relaxed").after($("#display"));
+  if (!narrow.matches) setDrawer(false);
+}
+
+function setDrawer(open) {
+  document.body.classList.toggle("drawer-open", open);
+  $("#open-filters").setAttribute("aria-expanded", open);
+  // keep keyboard focus and screen readers in the drawer while it's open
+  $("main").inert = open;
+  // focus the drawer rather than its search box, which would raise a phone's
+  // keyboard over the filters
+  if (open) filters.focus();
+  else if (filters.contains(document.activeElement)) $("#open-filters").focus();
 }
 
 // showEmpty explains an empty chart: either no discs match the filters at all,
@@ -413,12 +465,7 @@ function showEmpty(visible) {
 let legendDiscs = [];
 function drawLegend(discs = legendDiscs) {
   legendDiscs = discs;
-  let legend = $("#legend");
-  if (!legend) {
-    legend = document.createElement("span");
-    legend.id = "legend";
-    $("#toolbar").append(legend);
-  }
+  const legend = $("#legend");
   const mode = $("#color").value;
   let entries = [];
   if (mode === "category") entries = Object.entries(CATEGORY_COLORS).map(([k, c]) => [catLabel(k), c, "#0009"]);

@@ -12,8 +12,13 @@
     <script type="module" src="app.js"></script>
   </head>
   <body>
-    <form id="filters">
+    <form id="filters" tabindex="-1" aria-label="Filters">
       <h1>Flight Guide</h1>
+
+      <!-- on a narrow screen the toolbar's display controls move in here -->
+      <fieldset id="display-fieldset">
+        <legend>Display</legend>
+      </fieldset>
 
       <input id="q" name="q" type="search" placeholder="Search models…" autocomplete="off" />
 
@@ -44,38 +49,50 @@
       </fieldset>
 
       <button type="button" id="reset">Reset all filters</button>
+      <button type="button" id="about-link" class="link">About</button>
+      <button type="button" id="show-discs"></button>
     </form>
+    <div id="drawer-backdrop"></div>
 
     <main>
       <header id="toolbar">
+        <strong class="bar-title">Flight Guide</strong>
         <strong id="count"></strong>
         <span id="relaxed" class="muted" hidden>beyond the popular molds</span>
-        <label>
-          Color by
-          <select id="color" name="color">
-            <option value="brand">Brand</option>
-            <option value="category">Category</option>
-            <option value="stability">Stability</option>
-          </select>
-        </label>
-        <label class="check"><input type="checkbox" id="ghosts" name="ghosts" checked /> Show other discs</label>
-        <span class="key" aria-hidden="true">
-          <svg role="presentation" width="92" height="14" viewBox="0 0 92 14">
-            <line x1="90" y1="7" x2="40" y2="7" class="key-turn" />
-            <line x1="40" y1="7" x2="10" y2="7" class="key-fade" />
-            <circle cx="10" cy="7" r="5" class="key-dot" />
-          </svg>
+        <!-- the display controls have no names: on a narrow screen they live in
+             the filters form, and filterParams reads every named checkbox -->
+        <span id="display">
+          <label>
+            Color by
+            <select id="color">
+              <option value="brand">Brand</option>
+              <option value="category">Category</option>
+              <option value="stability">Stability</option>
+            </select>
+          </label>
+          <label class="check"><input type="checkbox" id="ghosts" checked /> Show other discs</label>
+          <span class="key" aria-hidden="true">
+            <svg role="presentation" width="92" height="14" viewBox="0 0 92 14">
+              <line x1="90" y1="7" x2="40" y2="7" class="key-turn" />
+              <line x1="40" y1="7" x2="10" y2="7" class="key-fade" />
+              <circle cx="10" cy="7" r="5" class="key-dot" />
+            </svg>
+          </span>
+          <span class="key-text">starts at 0, thick = turn, thin = fade, dot = turn+fade</span>
+          <span id="legend"></span>
         </span>
-        <span class="key-text">starts at 0, thick = turn, thin = fade, dot = turn+fade</span>
         <span id="zoom-hint" class="muted">Drag to zoom</span>
-        <button type="button" id="reset-zoom" hidden>Reset zoom (Esc)</button>
+        <button type="button" id="reset-zoom" hidden>Reset zoom<span class="esc-hint"> (Esc)</span></button>
+        <button type="button" id="open-filters" aria-controls="filters" aria-expanded="false">
+          Filters <span id="filter-badge" hidden></span>
+        </button>
       </header>
       <div id="chart">
         <aside id="inline-detail" class="card" hidden></aside>
       </div>
       <div id="empty" hidden>
         <p id="empty-text"></p>
-        <button type="button" id="empty-reset">Reset zoom (Esc)</button>
+        <button type="button" id="empty-reset">Reset zoom<span class="esc-hint"> (Esc)</span></button>
       </div>
       <div id="tooltip" role="tooltip" hidden></div>
     </main>
@@ -83,6 +100,31 @@
     <dialog id="detail">
       <form method="dialog"><button type="submit" class="close" aria-label="Close">×</button></form>
       <div id="detail-body" class="card"></div>
+    </dialog>
+
+    <dialog id="about">
+      <form method="dialog"><button type="submit" class="close" aria-label="Close">×</button></form>
+      <div class="card">
+        <h2>About</h2>
+        <p>
+          Every disc's flight numbers, description and specs come from
+          <a href="https://www.marshallstreetdiscgolf.com/flightguide/" target="_blank" rel="noopener"
+            >Marshall Street Disc Golf's Interactive Flight Guide</a
+          >, and each disc links back to its page there.
+        </p>
+        <p>
+          The estimated flight paths are drawn from those numbers, by a model fitted to the flight curves
+          Marshall Street publish for each disc.
+        </p>
+        <p>
+          The popular molds shown by default were picked from
+          <a href="https://otbdiscs.com/" target="_blank" rel="noopener">OTB Discs</a>' best sellers.
+        </p>
+        <p>
+          The code is on
+          <a href="https://github.com/llimllib/flightguide" target="_blank" rel="noopener">GitHub</a>.
+        </p>
+      </div>
     </dialog>
   </body>
 </html>
