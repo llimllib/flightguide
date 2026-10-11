@@ -5,6 +5,8 @@
 // line from 0 to its turn, then a thin line from there to turn+fade, where the
 // disc's dot sits.
 
+import { flightDistance, flightPath } from "./flight.js";
+
 const SVG_NS = "http://www.w3.org/2000/svg";
 const MARGIN = { top: 56, right: 24, bottom: 12, left: 64 };
 
@@ -102,9 +104,31 @@ const radiusFor = (n) => (n > 300 ? 3.5 : n > 80 ? 5 : 7);
 
 const measure = (() => {
   const ctx = document.createElement("canvas").getContext("2d");
-  ctx.font = "11px system-ui, sans-serif";
-  return (text) => ctx.measureText(text).width;
+  return (text, size = 11) => {
+    ctx.font = `${size}px system-ui, sans-serif`;
+    return ctx.measureText(text).width;
+  };
 })();
+
+// the stability labels each get a tiny flight path, for readers who don't know
+// which way an overstable disc goes. These are made-up mid-range discs, picked
+// to show a clear fade and a clear turn
+const OVERSTABLE = { speed: 9, glide: 4, turn: 0, fade: 4 };
+const UNDERSTABLE = { speed: 9, glide: 4, turn: -4, fade: 1 };
+const ICON_H = 20;
+const ICON_GAP = 4;
+// half the icon's width in feet; neither disc drifts much past 90
+const ICON_HALF_FT = 100;
+
+// the icon is cropped to the disc's carry, so the curve fills its height
+const iconWidth = (d) => (ICON_H * 2 * ICON_HALF_FT) / flightDistance(d);
+
+// flightIcon draws d's path as a nested svg whose top left is at x, y
+function flightIcon(d, hand, x, y) {
+  const f = flightPath(d, hand);
+  const viewBox = `${-ICON_HALF_FT} ${-f.dist} ${2 * ICON_HALF_FT} ${f.dist}`;
+  return `<svg class="stability-icon" x="${x.toFixed(1)}" y="${y}" width="${iconWidth(d).toFixed(1)}" height="${ICON_H}" viewBox="${viewBox}" aria-hidden="true"><path d="${f.path}"/></svg>`;
+}
 
 export class Chart {
   constructor(container, { onHover, onClick, onZoom, onVisible }) {
@@ -116,6 +140,7 @@ export class Chart {
     this.discs = [];
     this.ghosts = [];
     this.dom = null;
+    this.hand = "r";
 
     this.svg = el("svg");
     const clip = el("clipPath", { id: "plot-clip" });
@@ -280,6 +305,12 @@ export class Chart {
   }
 
   // setZoom animates to dom, or back to the automatic fit if it's null
+  // setHand mirrors the stability icons for a left-handed thrower
+  setHand(hand) {
+    this.hand = hand;
+    if (this.dom) this.drawAxes(this.scales(this.dom));
+  }
+
   setZoom(dom) {
     if (!dom && !this.zoom) return;
     this.zoom = dom;
@@ -631,11 +662,27 @@ export class Chart {
     }
 
     const mid = (x0 + x1) / 2;
+    const title = "Stability (Turn + Fade)";
     out.push(
-      `<text class="axis-title" x="${mid}" y="20" text-anchor="middle">Stability (Turn + Fade)</text>`,
+      `<text class="axis-title" x="${mid}" y="20" text-anchor="middle">${title}</text>`,
     );
-    out.push(`<text x="${x0}" y="20">← overstable</text>`);
-    out.push(`<text x="${x1}" y="20" text-anchor="end">understable →</text>`);
+    const over = "← overstable";
+    const under = "understable →";
+    out.push(`<text x="${x0}" y="20">${over}</text>`);
+    out.push(`<text x="${x1}" y="20" text-anchor="end">${under}</text>`);
+    // each label is followed, on the side nearer the middle, by its flight,
+    // unless that would run into the title
+    const overX = x0 + measure(over, 12) + ICON_GAP;
+    const underX =
+      x1 - measure(under, 12) - ICON_GAP - iconWidth(UNDERSTABLE);
+    const room = mid - measure(title, 13) / 2 - ICON_GAP;
+    if (overX + iconWidth(OVERSTABLE) <= room && underX >= 2 * mid - room) {
+      // centred on the text's middle, which sits about 0.35em above its
+      // baseline, as with the speed labels' dy
+      const iconY = 20 - 0.35 * 12 - ICON_H / 2;
+      out.push(flightIcon(OVERSTABLE, this.hand, overX, iconY));
+      out.push(flightIcon(UNDERSTABLE, this.hand, underX, iconY));
+    }
     const ym = (y0 + y1) / 2;
     out.push(
       `<text class="axis-title" transform="translate(18 ${ym}) rotate(-90)" text-anchor="middle">Speed</text>`,

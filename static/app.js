@@ -166,6 +166,7 @@ async function init() {
     },
     onVisible: showEmpty,
   });
+  chart.setHand(hand);
   $("#reset-zoom").addEventListener("click", () => chart.setZoom(null));
   $("#empty-reset").addEventListener("click", () => chart.setZoom(null));
   // the toggle lives inside cards that are rebuilt as discs are opened
@@ -173,6 +174,7 @@ async function init() {
     const pick = e.target.closest?.("[data-hand]");
     if (!pick || pick.dataset.hand === hand) return;
     hand = pick.dataset.hand;
+    chart.setHand(hand);
     redrawFlights();
     saveURL();
   });
@@ -280,6 +282,7 @@ function restore(p) {
   $("#color").value = p.get("color") ?? "brand";
   $("#ghosts").checked = p.get("ghosts") !== "0";
   hand = p.get("hand") === "l" ? "l" : "r";
+  chart?.setHand(hand);
   $("#brand-search").value = "";
   filterBrandList("");
 }

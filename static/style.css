@@ -339,6 +339,14 @@ main {
   font-size: 12px;
 }
 
+.axis .stability-icon path {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
 .axis .axis-title {
   fill: var(--text);
   font-size: 13px;
@@ -572,6 +580,8 @@ main {
    the space instead. Anchored inside #chart, which is the plot area below the
    toolbar, and scrolls rather than growing past it. */
 #inline-detail {
+  display: flex;
+  flex-direction: column;
   position: absolute;
   top: 12px;
   right: 12px;
@@ -584,6 +594,27 @@ main {
   border: 1px solid var(--grid);
   border-radius: 8px;
   font-size: 13px;
+}
+
+/* display: flex would otherwise beat the hidden attribute */
+#inline-detail[hidden] {
+  display: none;
+}
+
+/* too narrow to float the flight path beside the specs, so it gets its own
+   full width row, moved up under the four numbers it's drawn from */
+#inline-detail > * {
+  order: 1;
+}
+
+#inline-detail > :is(h2, .muted, .ratings) {
+  order: 0;
+}
+
+#inline-detail .flight {
+  float: none;
+  width: auto;
+  margin: 4px 0 8px;
 }
 
 #inline-detail img {
