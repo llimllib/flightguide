@@ -210,6 +210,12 @@ select {
   cursor: pointer;
 }
 
+/* display: flex would otherwise beat the hidden attribute, which the brand
+   search uses to filter the list */
+.check[hidden] {
+  display: none;
+}
+
 .brands {
   display: flex;
   flex-direction: column;
