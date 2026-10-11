@@ -366,6 +366,25 @@ function filterBrandList(text) {
   for (const label of $("#brands").children) label.hidden = !label.dataset.name.includes(t);
 }
 
+// the generic words in brand names, which the search doesn't match on their own:
+// half the brands are "Something Discs", so "disc" would match them all
+const BRAND_FILLER = new Set(["disc", "discs", "golf"]);
+
+// searchBrands returns the brands a search matches: those with a word starting
+// with q, other than the filler words, or whose whole name starts with q.
+// "star" finds Lone Star Discs without "an" finding Discmania, and "dis"
+// finds Discraft and Discmania rather than every "Something Discs"
+function searchBrands(q) {
+  return new Set(
+    meta.brands
+      .map((b) => b.name)
+      .filter((name) => {
+        const n = name.toLowerCase();
+        return n.startsWith(q) || n.split(/\s+/u).some((w) => !BRAND_FILLER.has(w) && w.startsWith(q));
+      }),
+  );
+}
+
 // applyFilters returns the discs matching a filterParams() query. build_json.py
 // writes them in the order the chart draws them, fastest and most overstable
 // first, and filtering keeps that order.
@@ -373,6 +392,9 @@ function applyFilters(p) {
   const brands = new Set(p.getAll("brand"));
   const categories = new Set(p.getAll("category"));
   const q = (p.get("q") ?? "").toLowerCase();
+  // the search box matches brands as well as models, so a reader who types a
+  // brand there gets its discs rather than an empty chart
+  const qBrands = q ? searchBrands(q) : new Set();
   const hideOOP = p.get("oop") === "0";
   const popularOnly = p.get("popular") === "1";
   // only the sliders away from the ends of their track filter anything
@@ -387,7 +409,13 @@ function applyFilters(p) {
     if (categories.size && !categories.has(d.category)) return false;
     if (hideOOP && d.out_of_production) return false;
     if (popularOnly && !d.popular) return false;
-    if (q && !d.model.toLowerCase().includes(q) && !(d.pdga_model ?? "").toLowerCase().includes(q)) return false;
+    if (
+      q &&
+      !qBrands.has(d.brand) &&
+      !d.model.toLowerCase().includes(q) &&
+      !(d.pdga_model ?? "").toLowerCase().includes(q)
+    )
+      return false;
     for (const [value, lo, hi] of bounds) {
       const v = value(d);
       if (v < lo || v > hi) return false;
