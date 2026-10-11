@@ -232,6 +232,7 @@ async function init() {
   });
   $("#clear-brands").addEventListener("click", () => {
     for (const cb of filters.querySelectorAll("[name=brand]:checked")) cb.checked = false;
+    filterBrandList($("#brand-search").value);
     update();
   });
   $("#reset").addEventListener("click", () => {
@@ -361,9 +362,15 @@ function syncSlider(r) {
   box.classList.toggle("active", lo > min || hi < max);
 }
 
+// filterBrandList shows the brands matching text, and any that are ticked, so
+// the list never hides part of the selection. It runs when the text changes
+// rather than on every tick, or unticking a brand that doesn't match would
+// make it vanish from under the pointer
 function filterBrandList(text) {
   const t = text.trim().toLowerCase();
-  for (const label of $("#brands").children) label.hidden = !label.dataset.name.includes(t);
+  for (const label of $("#brands").children) {
+    label.hidden = !label.dataset.name.includes(t) && !label.querySelector("input").checked;
+  }
 }
 
 // the generic words in brand names, which the search doesn't match on their own:
