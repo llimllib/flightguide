@@ -96,7 +96,18 @@ select {
 .dual {
   --thumb: 14px;
   position: relative;
-  height: 20px;
+  height: calc(var(--thumb) + 6px);
+}
+
+/* big enough to grab with a finger */
+@media (pointer: coarse) {
+  .dual {
+    --thumb: 24px;
+  }
+
+  .check {
+    padding: 4px 0;
+  }
 }
 
 /* inset by half a thumb, since that's where the thumb centers travel */
@@ -105,7 +116,7 @@ select {
   position: absolute;
   left: calc(var(--thumb) / 2);
   right: calc(var(--thumb) / 2);
-  top: 8px;
+  top: calc(var(--thumb) / 2 + 1px);
   height: 4px;
   border-radius: 2px;
   background: linear-gradient(

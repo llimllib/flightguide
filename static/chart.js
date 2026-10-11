@@ -9,6 +9,12 @@ import { flightDistance, flightPath } from "./flight.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
 const MARGIN = { top: 56, right: 24, bottom: 12, left: 64 };
+// on a phone, 64px is a sixth of the screen. The rotated Speed title goes, and
+// is written above the speed labels instead, which need only half the room
+const NARROW = 500;
+const NARROW_MARGIN = { top: 56, right: 12, bottom: 12, left: 32 };
+// the plot's floor height; any shorter and the chart scrolls instead
+const MIN_HEIGHT = 220;
 
 // the chart zooms to fit the discs shown, but never tighter than this many
 // units either side of their center
@@ -16,9 +22,10 @@ const MIN_SPEED_HALF = 3;
 const MIN_STABILITY_HALF = 2;
 const PAD = 0.5;
 
-// label as many discs as fit when there are at most this many; past that, the
-// chart is too dense for labels to help
-const LABEL_LIMIT = 300;
+// label as many discs as fit while each has at least this many square pixels
+// of plot to itself; any denser and labels don't help. About 300 discs on a
+// laptop, and 75 on a phone
+const LABEL_AREA = 2400;
 const LABEL_HEIGHT = 12;
 const DURATION = 400;
 
@@ -177,6 +184,8 @@ export class Chart {
       if (!this.hitTest(e)) this.setZoom(null);
     });
     this.svg.addEventListener("click", (e) => {
+      // a brush that ends over a disc still fires a click there
+      if (this.brushed) return;
       const it = this.hitTest(e);
       if (it) onClick(it.disc);
     });
@@ -217,15 +226,17 @@ export class Chart {
 
   measure() {
     const w = this.container.clientWidth;
-    const h = Math.max(360, this.container.clientHeight);
+    const h = Math.max(MIN_HEIGHT, this.container.clientHeight);
     this.size = { w, h };
+    this.margin = w < NARROW ? NARROW_MARGIN : MARGIN;
+    const m = this.margin;
     this.svg.setAttribute("width", w);
     this.svg.setAttribute("height", h);
     set(this.clipRect, {
-      x: MARGIN.left,
-      y: MARGIN.top,
-      width: Math.max(0, w - MARGIN.left - MARGIN.right),
-      height: Math.max(0, h - MARGIN.top - MARGIN.bottom),
+      x: m.left,
+      y: m.top,
+      width: Math.max(0, w - m.left - m.right),
+      height: Math.max(0, h - m.top - m.bottom),
     });
   }
 
@@ -363,9 +374,15 @@ export class Chart {
     return best;
   }
 
+  // brushStart begins a brush. With a mouse, starting on a disc is a click on
+  // it instead. A finger is too blunt for that: on a crowded phone screen
+  // nearly every touch is near some disc, and nothing could be brushed. So a
+  // touch always starts a brush, and brushEnd lets one that barely moved
+  // through as a tap
   brushStart(e) {
-    // starting on a disc is a click on it, not a brush
-    if (e.button !== 0 || !this.dom || this.hitTest(e)) return;
+    this.brushed = false;
+    if (e.button !== 0 || !this.dom) return;
+    if (e.pointerType !== "touch" && this.hitTest(e)) return;
     const p = this.local(e);
     if (!p.inside) return;
     e.preventDefault();
@@ -399,6 +416,8 @@ export class Chart {
     const r = e && this.brushRectFor(e);
     this.brush = null;
     this.brushRect.style.display = "none";
+    // anything drawn as a brush isn't a click, even if too thin to zoom to
+    this.brushed = Boolean(r) && (r.w >= MIN_BRUSH || r.h >= MIN_BRUSH);
     if (!r || r.w < MIN_BRUSH || r.h < MIN_BRUSH) return;
 
     const { inv } = this.scales(this.dom);
@@ -422,10 +441,11 @@ export class Chart {
 
   scales(dom) {
     const { w, h } = this.size;
-    const x0 = MARGIN.left;
-    const x1 = w - MARGIN.right;
-    const y0 = MARGIN.top;
-    const y1 = h - MARGIN.bottom;
+    const m = this.margin;
+    const x0 = m.left;
+    const x1 = w - m.right;
+    const y0 = m.top;
+    const y1 = h - m.bottom;
     // widen the domain so it maps to the plot inset by PAD_X and PAD_Y
     const padS =
       (PAD_X * (dom.stab[1] - dom.stab[0])) / Math.max(1, x1 - x0 - 2 * PAD_X);
@@ -662,7 +682,8 @@ export class Chart {
     }
 
     const mid = (x0 + x1) / 2;
-    const title = "Stability (Turn + Fade)";
+    const narrow = this.margin === NARROW_MARGIN;
+    const title = narrow ? "Stability" : "Stability (Turn + Fade)";
     out.push(
       `<text class="axis-title" x="${mid}" y="20" text-anchor="middle">${title}</text>`,
     );
@@ -685,7 +706,9 @@ export class Chart {
     }
     const ym = (y0 + y1) / 2;
     out.push(
-      `<text class="axis-title" transform="translate(18 ${ym}) rotate(-90)" text-anchor="middle">Speed</text>`,
+      narrow
+        ? `<text class="axis-title" x="4" y="36">Speed</text>`
+        : `<text class="axis-title" transform="translate(18 ${ym}) rotate(-90)" text-anchor="middle">Speed</text>`,
     );
     this.axisLayer.innerHTML = out.join("");
   }
@@ -704,8 +727,8 @@ export class Chart {
   drawLabels() {
     this.labelLayer.replaceChildren();
     for (const it of this.items.values()) it.label = null;
-    if (this.visible > LABEL_LIMIT) return;
     const { sx, sy, x0, x1, y0, y1 } = this.scales(this.dom);
+    if (this.visible * LABEL_AREA > (x1 - x0) * (y1 - y0)) return;
     const R = this.R;
     const pos = [...this.items.values()]
       .filter((it) => it.toVis)
