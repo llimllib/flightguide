@@ -118,7 +118,12 @@ function buildMeta(discs) {
     const b = brands.get(d.brand) ?? { name: d.brand, count: 0, bg_color: d.bg_color, text_color: d.text_color };
     b.count++;
     brands.set(d.brand, b);
-    if (d.category) categories.set(d.category, (categories.get(d.category) ?? 0) + 1);
+    if (d.category) {
+      const c = categories.get(d.category) ?? { count: 0, speed: 0 };
+      c.count++;
+      c.speed += d.speed;
+      categories.set(d.category, c);
+    }
   }
   const ranges = {};
   for (const [r, , value] of RANGES) {
@@ -127,7 +132,11 @@ function buildMeta(discs) {
   }
   return {
     brands: [...brands.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" })),
-    categories: [...categories].sort((a, b) => b[1] - a[1]).map(([c]) => c),
+    // fastest first, so the list runs the same way as the chart's speed axis:
+    // distance drivers at the top down to putters
+    categories: [...categories]
+      .sort(([, a], [, b]) => b.speed / b.count - a.speed / a.count)
+      .map(([c]) => c),
     ranges,
   };
 }
@@ -498,7 +507,8 @@ function drawLegend(discs = legendDiscs) {
   const legend = $("#legend");
   const mode = $("#color").value;
   let entries = [];
-  if (mode === "category") entries = Object.entries(CATEGORY_COLORS).map(([k, c]) => [catLabel(k), c, "#0009"]);
+  if (mode === "category")
+    entries = meta.categories.map((k) => [catLabel(k), CATEGORY_COLORS[k] ?? "#9ca3af", "#0009"]);
   else if (mode === "stability") entries = Object.entries(STABILITY_COLORS).map(([k, c]) => [k, c, "#0009"]);
   else {
     const brands = new Set(discs.map((d) => d.brand));
