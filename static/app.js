@@ -443,7 +443,7 @@ function filtersChanged(p) {
 
 // on a narrow screen the filters are a drawer, and the toolbar's display
 // controls move into it, since they're settings rather than something to watch
-const narrow = matchMedia("(max-width: 700px)");
+const narrow = matchMedia("(max-width: 700px), (max-height: 500px)");
 
 function placeDisplay() {
   if (narrow.matches) $("#display-fieldset").append($("#display"));

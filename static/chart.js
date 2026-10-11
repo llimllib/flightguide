@@ -22,10 +22,11 @@ const MIN_SPEED_HALF = 3;
 const MIN_STABILITY_HALF = 2;
 const PAD = 0.5;
 
-// label as many discs as fit while each has at least this many square pixels
-// of plot to itself; any denser and labels don't help. About 300 discs on a
-// laptop, and 75 on a phone
-const LABEL_AREA = 2400;
+// label as many discs as fit when there are at most this many, and each has at
+// least LABEL_AREA square pixels of plot to itself; any denser and labels
+// don't help. A laptop reaches the cap, and a phone about 130 discs
+const LABEL_LIMIT = 300;
+const LABEL_AREA = 1500;
 const LABEL_HEIGHT = 12;
 const DURATION = 400;
 
@@ -733,7 +734,11 @@ export class Chart {
     this.labelLayer.replaceChildren();
     for (const it of this.items.values()) it.label = null;
     const { sx, sy, x0, x1, y0, y1 } = this.scales(this.dom);
-    if (this.visible * LABEL_AREA > (x1 - x0) * (y1 - y0)) return;
+    if (
+      this.visible > LABEL_LIMIT ||
+      this.visible * LABEL_AREA > (x1 - x0) * (y1 - y0)
+    )
+      return;
     const R = this.R;
     const pos = [...this.items.values()]
       .filter((it) => it.toVis)

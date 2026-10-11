@@ -28,7 +28,9 @@ a real phone.
 
 This phase fixes "unusable" on its own and should ship by itself.
 
-**Breakpoint.** Use `@media (max-width: 700px)`. Below that width:
+**Breakpoint.** Use `@media (max-width: 700px), (max-height: 500px)`. The
+height half catches a phone in landscape, which is wide enough for the sidebar
+but too short for it. Below that width:
 
 - `body` becomes a single column sized with `100dvh` rather than `100vh`. On
   iOS, `100vh` includes the area behind the address bar, which pushes the
