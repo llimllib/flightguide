@@ -323,7 +323,8 @@ main {
   left: 0;
   display: block;
   cursor: crosshair;
-  touch-action: none;
+  /* brushing is mouse only, so let a finger pan and pinch zoom the page */
+  touch-action: manipulation;
   user-select: none;
 }
 

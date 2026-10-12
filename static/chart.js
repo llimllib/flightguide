@@ -377,18 +377,17 @@ export class Chart {
     return best;
   }
 
-  // brushStart begins a brush. With a mouse, starting on a disc is a click on
-  // it instead. A finger is too blunt for that: on a crowded phone screen
-  // nearly every touch is near some disc, and nothing could be brushed. So a
-  // touch always starts a brush, and brushEnd lets one that barely moved
-  // through as a tap
+  // brushStart begins a brush. Starting on a disc is a click on it instead.
+  // A touch never brushes: a drag under a finger is left to the browser, so
+  // pinch zoom and scrolling keep working on a phone
   brushStart(e) {
     this.brushed = false;
     // remembered for the click that follows, since Safari's click events
     // don't say what kind of pointer made them
     this.pointerType = e.pointerType;
+    if (e.pointerType === "touch") return;
     if (e.button !== 0 || !this.dom) return;
-    if (e.pointerType !== "touch" && this.hitTest(e)) return;
+    if (this.hitTest(e)) return;
     const p = this.local(e);
     if (!p.inside) return;
     e.preventDefault();
