@@ -92,6 +92,16 @@ const MIN_LANE = 2;
 // a brush smaller than this, in pixels, is a click and doesn't zoom
 const MIN_BRUSH = 8;
 
+// the wheel zooms by e^(pixels * rate); a trackpad pinch, which arrives as a
+// wheel with ctrlKey, scrolls in far smaller steps than a mouse notch
+const WHEEL_RATE = 0.002;
+const PINCH_RATE = 0.01;
+// pixels in a wheel line or page, for wheels that scroll by those
+const WHEEL_UNITS = [1, 40, 800];
+// the wheel zooms no closer than this many units of speed and of stability,
+// the same as the narrowest brush
+const MIN_ZOOM = 1;
+
 // how far from a dot's centre, in pixels, the pointer still counts as on it.
 // The reach is an ellipse because speed rows sit tens of pixels apart while
 // lanes within a row are packed about a diameter apart, so there's far more
@@ -100,6 +110,12 @@ const MIN_BRUSH = 8;
 // enough at all
 const HIT_X = 24;
 const HIT_Y = 36;
+
+const sameDomain = (a, b) =>
+  a.speed[0] === b.speed[0] &&
+  a.speed[1] === b.speed[1] &&
+  a.stab[0] === b.stab[0] &&
+  a.stab[1] === b.stab[1];
 
 const inDomain = (d, dom) =>
   d.speed >= dom.speed[0] &&
@@ -181,6 +197,10 @@ export class Chart {
     this.svg.addEventListener("pointerdown", (e) => this.brushStart(e));
     this.svg.addEventListener("pointerup", (e) => this.brushEnd(e));
     this.svg.addEventListener("pointercancel", () => this.brushEnd(null));
+    // not passive, so a wheel over the plot zooms instead of scrolling
+    this.svg.addEventListener("wheel", (e) => this.wheel(e), {
+      passive: false,
+    });
     this.svg.addEventListener("dblclick", (e) => {
       if (!this.hitTest(e)) this.setZoom(null);
     });
@@ -325,7 +345,7 @@ export class Chart {
     if (this.dom) this.drawAxes(this.scales(this.dom));
   }
 
-  setZoom(dom) {
+  setZoom(dom, duration = DURATION) {
     if (!dom && !this.zoom) return;
     this.zoom = dom;
     this.onZoom?.(Boolean(dom));
@@ -334,7 +354,38 @@ export class Chart {
     this.density(target);
     this.layout(target);
     for (const it of this.items.values()) it.fromLane = it.lane;
-    this.animate(this.dom ?? target, target);
+    this.animate(this.dom ?? target, target, duration);
+  }
+
+  // wheel zooms in or out around the pointer. Zooming out never goes past the
+  // automatic fit, and on reaching it clears the zoom, so a brushed zoom can
+  // be wheeled back out to every disc
+  wheel(e) {
+    if (!this.dom || !e.deltaY) return;
+    const p = this.local(e);
+    if (!p.inside) return;
+    e.preventDefault();
+    const px = e.deltaY * WHEEL_UNITS[e.deltaMode];
+    const k = Math.exp(px * (e.ctrlKey ? PINCH_RATE : WHEEL_RATE));
+    const full = domainFor(this.discs, this.extent);
+    // start from where the last wheel was headed, not from partway there
+    const from = this.zoom ?? full;
+    const at = this.scales(from).inv(p.x, p.y);
+    // scale an axis around a, keeping a under the pointer. Zooming out stays
+    // within the fit, so the view widens toward every disc
+    const scale = ([lo, hi], a, [flo, fhi]) => {
+      const w = Math.max(MIN_ZOOM, (hi - lo) * k);
+      if (k > 1 && w >= fhi - flo) return [flo, fhi];
+      let l = a + (lo - a) * (w / (hi - lo));
+      if (k > 1) l = Math.min(fhi - w, Math.max(flo, l));
+      return [l, l + w];
+    };
+    const dom = {
+      speed: scale(from.speed, at.speed, full.speed),
+      stab: scale(from.stab, at.stab, full.stab),
+    };
+    if (sameDomain(dom, full)) this.setZoom(null, 0);
+    else if (!sameDomain(dom, from)) this.setZoom(dom, 0);
   }
 
   // local returns the pointer position in svg pixels, clamped to the plot
@@ -599,16 +650,16 @@ export class Chart {
     }
   }
 
-  animate(from, to) {
+  animate(from, to, duration = DURATION) {
     cancelAnimationFrame(this.raf);
-    if (matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    if (!duration || matchMedia("(prefers-reduced-motion: reduce)").matches) {
       this.draw(to, 1);
       this.finish();
       return;
     }
     const start = performance.now();
     const tick = (now) => {
-      const t = ease(Math.min(1, (now - start) / DURATION));
+      const t = ease(Math.min(1, (now - start) / duration));
       this.draw(
         {
           speed: from.speed.map((v, i) => lerp(v, to.speed[i], t)),
