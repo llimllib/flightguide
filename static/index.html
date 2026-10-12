@@ -20,6 +20,7 @@
     </script>
     <script type="module" src="app.js"></script>
   </head>
+
   <body>
     <form id="filters" tabindex="-1" aria-label="Filters">
       <h1>hyzer.cloud</h1>
@@ -29,11 +30,20 @@
         <legend>Display</legend>
       </fieldset>
 
-      <input id="q" name="q" type="search" placeholder="Search models or brands…" autocomplete="off" />
+      <input
+        id="q"
+        name="q"
+        type="search"
+        placeholder="Search models or brands…"
+        autocomplete="off"
+      />
 
       <fieldset>
         <legend>Molds</legend>
-        <label class="check"><input type="checkbox" id="popular" checked /> Popular molds only</label>
+        <label class="check"
+          ><input type="checkbox" id="popular" checked /> Popular molds
+          only</label
+        >
       </fieldset>
 
       <fieldset>
@@ -48,12 +58,25 @@
 
       <fieldset>
         <legend>Availability</legend>
-        <label class="check"><input type="checkbox" id="hide-oop" checked /> Hide out of production</label>
+        <label class="check"
+          ><input type="checkbox" id="hide-oop" checked /> Hide out of
+          production</label
+        >
       </fieldset>
 
       <fieldset class="brands">
-        <legend>Brand <button type="button" id="clear-brands" class="link" hidden>clear</button></legend>
-        <input id="brand-search" type="search" placeholder="Filter brands…" autocomplete="off" />
+        <legend>
+          Brand
+          <button type="button" id="clear-brands" class="link" hidden>
+            clear
+          </button>
+        </legend>
+        <input
+          id="brand-search"
+          type="search"
+          placeholder="Filter brands…"
+          autocomplete="off"
+        />
         <div id="brands" class="checks"></div>
       </fieldset>
 
@@ -79,7 +102,10 @@
               <option value="stability">Stability</option>
             </select>
           </label>
-          <label class="check"><input type="checkbox" id="ghosts" checked /> Show other discs</label>
+          <label class="check"
+            ><input type="checkbox" id="ghosts" checked /> Show other
+            discs</label
+          >
           <span class="key" aria-hidden="true">
             <svg role="presentation" width="92" height="14" viewBox="0 0 92 14">
               <line x1="90" y1="7" x2="40" y2="7" class="key-turn" />
@@ -87,12 +113,21 @@
               <circle cx="10" cy="7" r="5" class="key-dot" />
             </svg>
           </span>
-          <span class="key-text">starts at 0, thick = turn, thin = fade, dot = turn+fade</span>
+          <span class="key-text"
+            >starts at 0, thick = turn, thin = fade, dot = turn+fade</span
+          >
           <span id="legend"></span>
         </span>
         <span id="zoom-hint" class="muted">Drag or scroll to zoom</span>
-        <button type="button" id="reset-zoom" hidden>Reset zoom<span class="esc-hint"> (Esc)</span></button>
-        <button type="button" id="open-filters" aria-controls="filters" aria-expanded="false">
+        <button type="button" id="reset-zoom" hidden>
+          Reset zoom<span class="esc-hint"> (Esc)</span>
+        </button>
+        <button
+          type="button"
+          id="open-filters"
+          aria-controls="filters"
+          aria-expanded="false"
+        >
           Filters <span id="filter-badge" hidden></span>
         </button>
       </header>
@@ -102,37 +137,53 @@
       </div>
       <div id="empty" hidden>
         <p id="empty-text"></p>
-        <button type="button" id="empty-reset">Reset zoom<span class="esc-hint"> (Esc)</span></button>
+        <button type="button" id="empty-reset">
+          Reset zoom<span class="esc-hint"> (Esc)</span>
+        </button>
       </div>
       <div id="tooltip" role="tooltip" hidden></div>
     </main>
 
     <dialog id="detail">
-      <form method="dialog"><button type="submit" class="close" aria-label="Close">×</button></form>
+      <form method="dialog">
+        <button type="submit" class="close" aria-label="Close">×</button>
+      </form>
       <div id="detail-body" class="card"></div>
     </dialog>
 
     <dialog id="about">
-      <form method="dialog"><button type="submit" class="close" aria-label="Close">×</button></form>
+      <form method="dialog">
+        <button type="submit" class="close" aria-label="Close">×</button>
+      </form>
       <div class="card">
         <h2>About</h2>
         <p>
           Every disc's flight numbers, description and specs come from
-          <a href="https://www.marshallstreetdiscgolf.com/flightguide/" target="_blank" rel="noopener"
+          <a
+            href="https://www.marshallstreetdiscgolf.com/flightguide/"
+            target="_blank"
+            rel="noopener"
             >Marshall Street Disc Golf's Interactive Flight Guide</a
           >, and each disc links back to its page there.
         </p>
         <p>
-          The estimated flight paths are drawn from those numbers, by a model fitted to the flight curves
-          Marshall Street publish for each disc.
+          Estimated flight paths are drawn strictly from flight numbers, and do
+          not reflect anything other than those numbers
         </p>
         <p>
           The popular molds shown by default were picked from
-          <a href="https://otbdiscs.com/" target="_blank" rel="noopener">OTB Discs</a>' best sellers.
+          <a href="https://otbdiscs.com/" target="_blank" rel="noopener"
+            >OTB Discs</a
+          >' best sellers.
         </p>
         <p>
           The code is on
-          <a href="https://github.com/llimllib/hyzer.cloud" target="_blank" rel="noopener">GitHub</a>.
+          <a
+            href="https://github.com/llimllib/hyzer.cloud"
+            target="_blank"
+            rel="noopener"
+            >GitHub</a
+          >.
         </p>
         <p><button type="button" id="view-toggle">3D version</button></p>
       </div>
