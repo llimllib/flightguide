@@ -9,6 +9,15 @@
       href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><text x='8' y='13' font-size='15' text-anchor='middle'>🥏</text></svg>"
     />
     <link rel="stylesheet" href="style.css" />
+    <!-- only the 3D chart uses three.js, and only loads it when it's asked for -->
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.186.1/examples/jsm/"
+        }
+      }
+    </script>
     <script type="module" src="app.js"></script>
   </head>
   <body>
@@ -125,6 +134,7 @@
           The code is on
           <a href="https://github.com/llimllib/flightguide" target="_blank" rel="noopener">GitHub</a>.
         </p>
+        <p><button type="button" id="view-toggle">3D version</button></p>
       </div>
     </dialog>
   </body>

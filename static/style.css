@@ -327,6 +327,26 @@ main {
   user-select: none;
 }
 
+/* the 3D chart's canvas, which the 2D chart's svg makes way for */
+#chart > canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+  touch-action: none;
+}
+
+body.view-3d #chart > svg,
+body:not(.view-3d) #chart > canvas {
+  display: none;
+}
+
+/* the 3D chart has no brush zoom, ghosts or turn and fade lines, so the
+   controls and key for them go */
+body.view-3d :is(#zoom-hint, #reset-zoom, .key, .key-text, label:has(#ghosts)) {
+  display: none;
+}
+
 .brush {
   fill: var(--accent);
   fill-opacity: 0.1;

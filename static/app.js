@@ -143,7 +143,14 @@ function buildMeta(discs) {
 
 let meta;
 let allDiscs;
+// chart is whichever of the two charts is showing. The 3D one is a toy reached
+// from the About dialog: it's loaded the first time it's asked for, and both
+// are kept once built, so switching back and forth is cheap
 let chart;
+let chart2d;
+let chart3d;
+let view = "2d";
+let chartEvents;
 
 async function init() {
   allDiscs = await getJSON("data/discs.json");
@@ -164,9 +171,10 @@ async function init() {
     .join("");
   buildSliders();
 
-  restore(new URLSearchParams(location.search));
+  const params = new URLSearchParams(location.search);
+  restore(params);
 
-  chart = new Chart($("#chart"), {
+  chartEvents = {
     onHover: showTooltip,
     onClick: clickDisc,
     onZoom: (zoomed) => {
@@ -174,7 +182,8 @@ async function init() {
       $("#zoom-hint").hidden = zoomed;
     },
     onVisible: showEmpty,
-  });
+  };
+  chart = chart2d = new Chart($("#chart"), chartEvents);
   chart.setHand(hand);
   $("#reset-zoom").addEventListener("click", () => chart.setZoom(null));
   $("#empty-reset").addEventListener("click", () => chart.setZoom(null));
@@ -240,6 +249,10 @@ async function init() {
     update();
   });
   $("#about-link").addEventListener("click", () => $("#about").showModal());
+  $("#view-toggle").addEventListener("click", () => {
+    $("#about").close();
+    setView(view === "3d" ? "2d" : "3d");
+  });
   $("#peek").addEventListener("click", (e) => {
     if (e.target.closest(".peek-details")) showDetail(peekDisc);
     else if (e.target.closest(".peek-close")) showPeek(null);
@@ -259,6 +272,29 @@ async function init() {
   }
 
   update();
+  if (params.get("view") === "3d") setView("3d");
+}
+
+async function setView(v) {
+  if (v === "3d" && !chart3d) {
+    try {
+      const { Chart3D } = await import("./chart3d.js");
+      chart3d = new Chart3D($("#chart"), chartEvents);
+    } catch (err) {
+      console.error(err);
+      alert("Couldn't load the 3D view");
+      return;
+    }
+  }
+  // put away what the old chart had open, while it's still the one to tell
+  showPeek(null);
+  showTooltip(null);
+  view = v;
+  chart = v === "3d" ? chart3d : chart2d;
+  chart.setHand(hand);
+  document.body.classList.toggle("view-3d", v === "3d");
+  $("#view-toggle").textContent = v === "3d" ? "2D version" : "3D version";
+  redraw();
 }
 
 // filterParams returns the API query for the current filter controls
@@ -291,6 +327,7 @@ function uiParams() {
   if ($("#color").value !== "brand") p.set("color", $("#color").value);
   if (!$("#ghosts").checked) p.set("ghosts", "0");
   if (hand !== "r") p.set("hand", hand);
+  if (view === "3d") p.set("view", "3d");
   return p;
 }
 
