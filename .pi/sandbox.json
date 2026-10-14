@@ -1,6 +1,8 @@
 {
   "network": {
     "allowedDomains": [
+      "*.pdga.com",
+      "pdga.com",
       "*.rpmdiscs.com",
       "rpmdiscs.com",
       "*.marshallstreetdiscgolf.com",
