@@ -20,6 +20,10 @@ disagreements stay queryable after the merge.
 The PDGA's list of approved discs is loaded as published into pdga_discs. It
 has no flight numbers, and isn't yet linked to discs.
 
+brands.toml lists the brands we chart and the PDGA manufacturer names of
+each, and moves discs Marshall Street files under the wrong brand. The build
+fails on a brand it doesn't list.
+
 Building is offline and repeatable: run fetch.py to update sources/.
 
 Usage: build_db.py [sources_dir] [db]
@@ -30,6 +34,7 @@ import json
 import re
 import sqlite3
 import sys
+import tomllib
 import unicodedata
 from datetime import datetime
 from html import unescape
@@ -289,10 +294,54 @@ def parse_pdga(path):
 # Street's, and the parser for each
 MANUFACTURERS = {"rpm": parse_rpm}
 
+
+def apply_brands(discs, config):
+    """Move discs to their right brand, give every disc its brand's colors,
+    and return the brands table's rows. Fails on a brand config doesn't list,
+    and on a reassignment that names no disc."""
+    brands = config["brands"]
+
+    # Marshall Street's colors for each brand, taken before discs move between
+    # brands so that, say, Divergent doesn't take on the colors of "Other"
+    marshall_colors = {d["brand"]: [d["bg_color"], d["text_color"]] for d in discs}
+
+    by_key = {f"{d['brand']} | {d['model']}": d for d in discs}
+    for key, to in config.get("reassign", {}).items():
+        if key not in by_key:
+            raise ValueError(f"brands.toml: reassign {key!r} matches no disc")
+        to = to if isinstance(to, dict) else {"brand": to}
+        by_key[key].update(to)
+    print(f"brands: moved {len(config.get('reassign', {}))} discs to their right brand")
+
+    if unknown := sorted({d["brand"] for d in discs} - set(brands)):
+        raise ValueError(f"brands.toml: no entry for brand {', '.join(unknown)}")
+
+    rows = []
+    for name, b in brands.items():
+        colors = b.get("colors") or marshall_colors.get(name)
+        if not colors:
+            raise ValueError(f"brands.toml: {name} needs colors, which Marshall Street doesn't have")
+        rows.append({"name": name, "website": b.get("website"), "bg_color": colors[0], "text_color": colors[1]})
+    colors = {r["name"]: r for r in rows}
+    for d in discs:
+        d["bg_color"], d["text_color"] = colors[d["brand"]]["bg_color"], colors[d["brand"]]["text_color"]
+    return rows
+
+
+def check_pdga_names(brands, pdga):
+    """Fail on a PDGA manufacturer name in brands.toml that the PDGA's list
+    doesn't have, which is how a renamed manufacturer shows up, and report
+    the manufacturers we don't chart."""
+    have = {r["manufacturer"] for r in pdga}
+    ours = {m for b in brands.values() for m in b["pdga"]}
+    if missing := sorted(ours - have):
+        raise ValueError(f"brands.toml: the PDGA has no manufacturer {', '.join(map(repr, missing))}")
+    print(f"pdga: {len(have - ours)} of {len(have)} manufacturers aren't brands we chart")
+
 SCHEMA = """
 CREATE TABLE discs (
     id INTEGER PRIMARY KEY,         -- Marshall Street's disc id
-    brand TEXT NOT NULL,
+    brand TEXT NOT NULL REFERENCES brands (name),
     model TEXT NOT NULL,            -- display name, with "(OOP)" removed
     pdga_model TEXT,                -- name as listed by the PDGA, if present
     category TEXT,                  -- Putters, Midrange Drivers, ...
@@ -316,10 +365,33 @@ CREATE TABLE discs (
     description TEXT,               -- HTML
     link TEXT,
     image TEXT,
-    bg_color TEXT,
+    bg_color TEXT,                  -- the brand's colors, copied here for build_json.py
     text_color TEXT
 );
 CREATE INDEX discs_brand_model ON discs (brand, model);
+
+-- the brands we chart, from brands.toml
+CREATE TABLE brands (
+    name TEXT PRIMARY KEY,          -- what the brand's discs are marketed as
+    website TEXT,
+    bg_color TEXT NOT NULL,
+    text_color TEXT NOT NULL
+);
+
+-- the PDGA manufacturer names each brand's discs are approved under
+CREATE TABLE brand_pdga (
+    brand TEXT NOT NULL REFERENCES brands (name),
+    manufacturer TEXT NOT NULL,     -- a pdga_discs.manufacturer
+    PRIMARY KEY (brand, manufacturer)
+);
+
+-- what we know of who makes a brand's discs, or who it's related to
+CREATE TABLE brand_lineage (
+    brand TEXT NOT NULL REFERENCES brands (name),
+    related TEXT NOT NULL,          -- a company, which may or may not be a brand we chart
+    note TEXT NOT NULL,
+    source TEXT NOT NULL            -- where we know it from; "unverified" if from memory
+);
 
 -- the pages discs.db was built from, as recorded by fetch.py
 CREATE TABLE sources (
@@ -420,6 +492,7 @@ def main():
     here = Path(__file__).parent
     src = Path(sys.argv[1]) if len(sys.argv) > 1 else here / "sources"
     db_path = Path(sys.argv[2]) if len(sys.argv) > 2 else here / "discs.db"
+    config = tomllib.loads((here / "brands.toml").read_text())
 
     manifest_path = src / "fetched.json"
     if not manifest_path.exists():
@@ -429,11 +502,13 @@ def main():
         sys.exit(f"no parser for source {', '.join(sorted(unknown))}")
 
     discs = parse_marshall(src / manifest["marshall"]["file"])
+    print(f"marshall: {len(discs)} discs")
+    # recorded before brands.toml moves any, so they're as Marshall Street has them
     numbers = [
         {"source": "marshall", "disc_id": d["id"], **{k: d[k] for k in ("brand", "model", *FLIGHT)}, "url": d["link"]}
         for d in discs
     ]
-    print(f"marshall: {len(discs)} discs")
+    brands = apply_brands(discs, config)
 
     for name, parse in MANUFACTURERS.items():
         if name not in manifest:
@@ -441,16 +516,25 @@ def main():
         rows = parse(src / manifest[name]["file"])
         if not rows:
             sys.exit(f"{name}: found no discs; has the page's layout changed?")
+        if unknown := sorted({r["brand"] for r in rows} - set(config["brands"])):
+            sys.exit(f"{name}: brands.toml has no entry for brand {', '.join(unknown)}")
         for r, disc_id in zip(rows, merge(discs, name, rows)):
             numbers.append({"source": name, "disc_id": disc_id, **r})
 
     pdga = parse_pdga(src / manifest["pdga"]["file"]) if "pdga" in manifest else []
     if pdga:
         print(f"pdga: {len(pdga)} approved discs from {len({r['manufacturer'] for r in pdga})} manufacturers")
+        check_pdga_names(config["brands"], pdga)
 
     db_path.unlink(missing_ok=True)
     db = sqlite3.connect(db_path)
     db.executescript(SCHEMA)
+    insert(db, "brands", brands)
+    insert(db, "brand_pdga", [{"brand": k, "manufacturer": m} for k, b in config["brands"].items() for m in b["pdga"]])
+    lineage = [{"brand": k, "related": e["with"], "note": e["note"], "source": e["source"]}
+               for k, b in config["brands"].items() for e in b.get("lineage", [])]  # fmt: skip
+    if lineage:
+        insert(db, "brand_lineage", lineage)
     insert(db, "discs", discs)
     insert(db, "sources", [{"name": k, **v} for k, v in manifest.items()])
     insert(db, "source_numbers", numbers)

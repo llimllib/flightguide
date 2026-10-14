@@ -1,0 +1,305 @@
+# The brands we chart, and how each source names them.
+#
+# A brand is what a disc is marketed as, which isn't always who approved it
+# with the PDGA or who makes it. build_db.py fails on a disc whose brand isn't
+# listed here, so a new brand from a source gets decided rather than guessed.
+#
+# For each brand:
+#
+#   pdga     the PDGA manufacturer names its discs are approved under. Often a
+#            legal or distributor name, and there can be several. Empty if
+#            none of its discs are approved.
+#   website  the brand's own site, once a source has been read from it
+#   colors   [background, text] on the chart. Defaults to Marshall Street's
+#            colors for the brand; brands they don't have need their own.
+#   lineage  what we know of who makes the brand's discs, or who it's related
+#            to. Not shown on the site yet; kept for later. Each entry names the
+#            related company, says what we know, and where we know it from.
+#            Facts from memory say so and are unverified until checked.
+
+[brands."ABC Discs"]
+pdga = ["ABC Discs"]
+
+[brands."Above Ground Level"]
+pdga = ["Above Ground Level"]
+
+[brands."Alfa Discs"]
+pdga = ["Alfa Discs"]
+colors = ["#1E3A8A", "#FFFFFF"]
+
+[brands.AquaFlight]
+pdga = ["AquaFlight Discs"]
+
+[brands."Arsenal Discs"]
+pdga = ["Arsenal Discs"]
+colors = ["#4B5320", "#F5F5DC"]
+
+[[brands."Arsenal Discs".lineage]]
+with = "Gateway"
+note = "Marshall Street files Arsenal's Air Strike and Morningstar under Gateway"
+source = "marshall"
+
+[brands."Axiom Discs"]
+pdga = ["Axiom Discs"]
+
+[[brands."Axiom Discs".lineage]]
+with = "MVP"
+note = "the Uplink is approved under MVP Disc Sports"
+source = "pdga"
+
+[[brands."Axiom Discs".lineage]]
+with = "MVP"
+note = "Axiom, MVP and Streamline are brands of the same company"
+source = "maintainer's recollection, unverified"
+
+[brands."Bernoulli Disc Golf"]
+pdga = ["Bernoulli"]
+
+[brands.Birdie]
+pdga = ["Birdie"]
+
+[brands."Black Zombie Disc Golf"]
+pdga = ["Black Zombie Disc Golf"]
+colors = ["#2B2B2B", "#FF4040"]
+
+[[brands."Black Zombie Disc Golf".lineage]]
+with = "Gateway"
+note = "Marshall Street files the Black Zombie Chainsaw under Gateway"
+source = "marshall"
+
+[brands."Clash Discs"]
+pdga = ["Clash Discs"]
+
+[brands."Climo Disc Golf"]
+pdga = ["Climo Disc Golf"]
+
+[brands.Crosslap]
+pdga = ["Crosslap Disc Golf Parks"]
+
+# marketed as DGA, but some of its molds are approved under Discraft
+[brands.DGA]
+pdga = ["Disc Golf Association", "Discraft"]
+
+[[brands.DGA.lineage]]
+with = "Discraft"
+note = "the Rogue, Squall, Tsunami and Typhoon are approved under Discraft"
+source = "pdga"
+
+[brands."Daredevil Discs"]
+pdga = ["Daredevil Discs"]
+
+[brands."Dino Discs"]
+pdga = ["ABC Discs"]
+
+[[brands."Dino Discs".lineage]]
+with = "ABC Discs"
+note = "approved as variants of ABC molds: the Stegosaurus is the Mission, the Brachiosaurus the Flying Squirrel"
+source = "pdga"
+
+[brands.Discmania]
+pdga = ["Discmania"]
+
+[[brands.Discmania.lineage]]
+with = "Discraft"
+note = "formerly made by Discraft; who makes them now is unknown"
+source = "maintainer's recollection, unverified"
+
+[brands.Discraft]
+pdga = ["Discraft"]
+
+[brands.Disctroyer]
+pdga = ["Disctroyer OÜ"]
+
+[brands.Divergent]
+pdga = ["Divergent Discs"]
+
+[brands."Doomsday Discs"]
+pdga = ["Doomsday Discs"]
+
+# not "Destiny/Dynamic Disc", an unrelated maker of the 1980s
+[brands."Dynamic Discs"]
+pdga = ["Dynamic Discs"]
+
+[brands.EV-7]
+pdga = ["EV-7"]
+
+[brands."Elevation Disc Golf"]
+pdga = ["Elevation Disc Golf"]
+
+[brands."Finish Line"]
+pdga = ["Finish Line Discs"]
+
+[brands."Fly High Discs"]
+pdga = ["Fly High Discs"]
+colors = ["#87CEEB", "#003366"]
+
+[brands.Gateway]
+pdga = ["Gateway Disc Sports"]
+
+[brands."Hooligan Discs"]
+pdga = ["Hooligan Discs"]
+
+[brands.Hyperflite]
+pdga = ["Cheengz/Hyperflite"]
+colors = ["#FF6600", "#FFFFFF"]
+
+[brands."Infinite Discs"]
+pdga = ["Infinite Discs"]
+
+[[brands."Infinite Discs".lineage]]
+with = "Discraft"
+note = "made by Discraft"
+source = "maintainer's recollection, unverified"
+
+[brands.Innova]
+pdga = ["Innova Champion Discs", "Innova Factory Store"]
+
+[brands."Jester Disc Golf"]
+pdga = ["Jester Disc Golf"]
+
+[brands.Kastaplast]
+pdga = ["Kastaplast"]
+
+[brands."Latitude 64"]
+pdga = ["Latitude 64"]
+
+[brands.Legacy]
+pdga = ["Legacy Discs"]
+
+[brands.Lightning]
+pdga = ["Lightning Discs"]
+
+[brands."Lone Star Discs"]
+pdga = ["Lone Star Disc"]
+
+[brands."Løft Discs"]
+pdga = ["Løft Discs"]
+
+[brands.MVP]
+pdga = ["MVP Disc Sports"]
+
+[brands.Millennium]
+pdga = ["Millennium Golf Discs"]
+
+[brands."Mint Discs"]
+pdga = ["Mint Discs"]
+
+[brands."Momentum Disc Golf"]
+pdga = ["Momentum Disc Golf AB"]
+colors = ["#6A0DAD", "#FFFFFF"]
+
+[brands."Neptune Discs"]
+pdga = ["Neptune Discs"]
+
+[brands."Ozone Discs"]
+pdga = ["Ozone Discs"]
+colors = ["#00A3A3", "#FFFFFF"]
+
+[brands.Prodigy]
+pdga = ["Prodigy Disc"]
+
+[brands.Prodiscus]
+pdga = ["Prodiscus"]
+
+[brands.RPM]
+pdga = ["RPM Discs/Disc Golf Aotearoa"]
+website = "https://www.rpmdiscs.com/"
+
+[brands."Reptilian Disc Golf"]
+pdga = ["Reptilian Disc Golf"]
+colors = ["#2E8B57", "#FFFF66"]
+
+[[brands."Reptilian Disc Golf".lineage]]
+with = "Gateway"
+note = "Marshall Street files Reptilian's Scale and Serpent under Gateway"
+source = "marshall"
+
+[brands."Sacred Discs"]
+pdga = ["Sacred Discs"]
+
+[brands."Stokely Discs"]
+pdga = ["Stokely Discs"]
+
+[[brands."Stokely Discs".lineage]]
+with = "CHING Sports"
+note = "sells the CHING Juju; its Precision is a different mold from CHING's Power Precision"
+source = "marshall, pdga"
+
+[brands.Storm]
+pdga = ["Storm Disc Golf"]
+
+[brands.Streamline]
+pdga = ["Streamline Discs"]
+
+[[brands.Streamline.lineage]]
+with = "MVP"
+note = "Axiom, MVP and Streamline are brands of the same company"
+source = "maintainer's recollection, unverified"
+
+[brands."Thought Space Athletics"]
+pdga = ["Thought Space Athletics"]
+
+[brands."Trash Panda"]
+pdga = ["Trash Panda Disc Golf"]
+
+[brands."Universal Play"]
+pdga = ["Universal Play Disc Golf"]
+colors = ["#FFD700", "#222222"]
+
+[brands.Vibram]
+pdga = ["Vibram Disc Golf"]
+
+[brands.Viking]
+pdga = ["Viking Discs (IP-Agency Finland Oy)"]
+
+[[brands.Viking.lineage]]
+with = "Guru"
+note = "the Thor is approved under Guru"
+source = "pdga"
+
+[brands."Westside Discs"]
+pdga = ["Westside Golf Discs"]
+
+[brands."Wild Discs"]
+pdga = ["Wild Discs"]
+
+[brands.Yikun]
+pdga = ["Yikun Discs"]
+
+[[brands.Yikun.lineage]]
+with = "Black Zombie Disc Golf"
+note = "the Crossbow is approved under Black Zombie Disc Golf"
+source = "pdga"
+
+# Discs Marshall Street files under the wrong brand, as "Brand | Model" as
+# they have it, and the brand they belong to, or { brand, model } to rename
+# the model too. Their "Other" brand is a
+# catch-all for discs from brands they don't carry; each disc here was matched
+# to its PDGA approval by name, specs and approval date.
+[reassign]
+"Other | Andro C" = "Ozone Discs"
+"Other | Andro C (Retooled)" = "Ozone Discs"
+"Other | Apollo" = "Alfa Discs"
+"Other | Cypress" = "Above Ground Level"
+"Other | Flying Squirrel" = "ABC Discs"
+"Other | Golem" = "Divergent"
+"Other | I-One" = "Hyperflite"
+"Other | KGB" = "Fly High Discs"
+"Other | Kraken" = "Divergent"
+"Other | Lawin" = "Divergent"
+"Other | Leviathan" = "Divergent"
+"Other | Minotaur" = "Divergent"
+"Other | Narwhal" = "Divergent"
+"Other | Nice!" = "Momentum Disc Golf"
+"Other | Pure OG" = "Fly High Discs"
+"Other | Stego" = "Reptilian Disc Golf"
+"Other | Strike" = "Birdie"
+"Other | Tiyanak" = "Divergent"
+"Other | Tyrant" = "Reptilian Disc Golf"
+"Other | Ultra" = "Birdie"
+"Other | Zeal" = "Universal Play"
+"Gateway | Air Strike" = "Arsenal Discs"
+"Gateway | Morningstar" = "Arsenal Discs"
+"Gateway | Scale" = "Reptilian Disc Golf"
+"Gateway | Serpent" = "Reptilian Disc Golf"
+"Gateway | Black Zombie Chainsaw" = { brand = "Black Zombie Disc Golf", model = "Chainsaw" }

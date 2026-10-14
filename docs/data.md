@@ -52,6 +52,30 @@ whose PDGA name matched exactly. Things to know about it:
   isn't quite (23-46 is both Compound's Barb and Discmania's MD5).
 - "Last Year Production" is empty for every disc.
 
+## Brands
+
+`brands.toml` lists every brand we chart. A brand is what a disc is
+marketed as: DGA's discs are DGA's, though some are approved under
+Discraft. For each brand it gives:
+
+- the PDGA manufacturer names its discs are approved under, often legal or
+  distributor names ("Innova Champion Discs", "Innova Factory Store")
+- its colors on the chart, if Marshall Street doesn't have them
+- its website, once we read a source from it
+- **lineage**: what we know of who makes its discs, or who it's related
+  to, each fact with where it came from. Facts from memory are marked
+  unverified. Nothing shows lineage yet; it's kept for later.
+
+Its `[reassign]` section moves discs Marshall Street files under the wrong
+brand. They put 21 discs from brands they don't carry under "Other", and
+file Arsenal, Reptilian and Black Zombie discs under Gateway. Each was
+matched to its PDGA approval by name, specs and approval date.
+
+The build fails on a brand `brands.toml` doesn't list, on a reassignment
+that matches no disc, and on a PDGA manufacturer name the PDGA's list
+doesn't have, which is how a renamed manufacturer shows up. So a new brand
+is always a decision someone made, recorded in `brands.toml`.
+
 ## Checking a build
 
 `build_db.py` prints, for each manufacturer, the discs whose numbers it
@@ -88,12 +112,14 @@ where m.source = 'marshall' and s.source != 'marshall'
 
 1. Add the page to `SOURCES` in `fetch.py` and run `python fetch.py <name>`.
 2. Write a parser in `build_db.py` that returns one row per stock mold
-   (brand, model, speed, glide, turn, fade, url), and add it to `PARSERS`.
+   (brand, model, speed, glide, turn, fade, url), and add it to
+   `MANUFACTURERS`.
    Leave out special editions that give a mold's numbers a name of its own,
    like RPM's signature discs and Atua series, so they aren't reported as
    unmatched. Have the parser fail if it can't read a disc's numbers, so a
    change to the page fails the build instead of quietly dropping discs.
-3. Run `mise run build` and read the report. Discs match on brand and model
+3. Add its brand to `brands.toml` if it's new, and set its `website`.
+4. Run `mise run build` and read the report. Discs match on brand and model
    name, ignoring case, accents and punctuation (RPM's Tākapu is Marshall
    Street's Takapu). A name that fails to match shows up in the report as
    on one side only.
