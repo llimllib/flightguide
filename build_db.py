@@ -18,7 +18,9 @@ came from, and source_numbers keeps every source's numbers for every disc, so
 disagreements stay queryable after the merge.
 
 The PDGA's list of approved discs is loaded as published into pdga_discs. It
-has no flight numbers, and isn't yet linked to discs.
+has no flight numbers. Each disc is linked to its approval where we can find
+one, and takes its specs from it; molds.toml covers what the build can't
+work out itself.
 
 brands.toml lists the brands we chart and the PDGA manufacturer names of
 each, and moves discs Marshall Street files under the wrong brand. The build
@@ -36,6 +38,7 @@ import sqlite3
 import sys
 import tomllib
 import unicodedata
+from collections import Counter, defaultdict
 from datetime import datetime
 from html import unescape
 from html.parser import HTMLParser
@@ -145,6 +148,8 @@ def parse_marshall(path):
                 "brand": a["data-brand"].strip(),
                 "model": model,
                 "pdga_model": pdga_model,
+                "pdga_manufacturer": None,
+                "certification_number": None,
                 "category": a.get("data-category") or None,
                 "speed": num(a["data-speed"]),
                 "glide": num(a["data-glide"]),
@@ -295,6 +300,20 @@ def parse_pdga(path):
 MANUFACTURERS = {"rpm": parse_rpm}
 
 
+def disc_index(discs):
+    """Discs by the keys brands.toml and molds.toml name them with: "Brand |
+    Model", or "Brand | Model #id" with Marshall Street's id, for when two
+    discs share a name."""
+    names = Counter(f"{d['brand']} | {d['model']}" for d in discs)
+    index = {}
+    for d in discs:
+        key = f"{d['brand']} | {d['model']}"
+        index[f"{key} #{d['id']}"] = d
+        if names[key] == 1:
+            index[key] = d
+    return index
+
+
 def apply_brands(discs, config):
     """Move discs to their right brand, give every disc its brand's colors,
     and return the brands table's rows. Fails on a brand config doesn't list,
@@ -305,13 +324,17 @@ def apply_brands(discs, config):
     # brands so that, say, Divergent doesn't take on the colors of "Other"
     marshall_colors = {d["brand"]: [d["bg_color"], d["text_color"]] for d in discs}
 
-    by_key = {f"{d['brand']} | {d['model']}": d for d in discs}
+    by_key = disc_index(discs)
     for key, to in config.get("reassign", {}).items():
         if key not in by_key:
-            raise ValueError(f"brands.toml: reassign {key!r} matches no disc")
+            raise ValueError(f"brands.toml: reassign {key!r} matches no disc, or more than one")
         to = to if isinstance(to, dict) else {"brand": to}
         by_key[key].update(to)
-    print(f"brands: moved {len(config.get('reassign', {}))} discs to their right brand")
+    print(f"brands: moved or renamed {len(config.get('reassign', {}))} discs Marshall Street misfiled")
+
+    dupes = Counter(f"{d['brand']} | {d['model']}" for d in discs)
+    if dupes := sorted(k for k, n in dupes.items() if n > 1):
+        print(f"warning: more than one disc named {', '.join(dupes)}; rename them in brands.toml")
 
     if unknown := sorted({d["brand"] for d in discs} - set(brands)):
         raise ValueError(f"brands.toml: no entry for brand {', '.join(unknown)}")
@@ -338,12 +361,165 @@ def check_pdga_names(brands, pdga):
         raise ValueError(f"brands.toml: the PDGA has no manufacturer {', '.join(map(repr, missing))}")
     print(f"pdga: {len(have - ours)} of {len(have)} manufacturers aren't brands we chart")
 
+
+# what a disc takes from its PDGA approval: discs' column, pdga_discs' column
+PDGA_SPECS = {
+    "diameter_cm": "diameter_cm",
+    "height_cm": "height_cm",
+    "rim_depth_cm": "rim_depth_cm",
+    "rim_thickness_cm": "rim_thickness_cm",
+    "max_weight_g": "max_weight_g",
+    "pdga_approved_date": "approved_date",
+}
+# words in the PDGA's parentheses that aren't another name for the disc
+PDGA_NOT_NAMES = {"new", "retooled"}
+
+
+def name_slug(s):
+    return slug(re.sub(r"^the\s+", "", s.strip(), flags=re.I))
+
+
+def pdga_aliases(model):
+    """The names a PDGA approval goes by, lowercased. The PDGA puts aliases
+    and codes in parentheses: "Piwakawaka (MR1, originally Arcturus)" is also
+    the MR1 and the Arcturus, and "Flying Squirrel (Brachiosaurus variant)"
+    is also the Brachiosaurus."""
+    names = {model, model.split("(")[0]}
+    for inner in re.findall(r"\(([^)]*)\)", model):
+        for part in inner.split(","):
+            part = re.sub(r"^(aka|originally|formerly|former|renamed from)\s+", "", part.strip(), flags=re.I)
+            names.add(re.sub(r"\s+variant$", "", part, flags=re.I))
+    return {n.strip().lower() for n in names}
+
+
+def pdga_names(model):
+    return {name_slug(n) for n in pdga_aliases(model)} - PDGA_NOT_NAMES - {""}
+
+
+def disc_names(d):
+    """The names a disc goes by: its own, and Marshall Street's name for its
+    approval, each also without any parenthesized suffix like "(GStar)"."""
+    names = set()
+    for n in (d["model"], d["pdga_model"]):
+        if n:
+            names |= {name_slug(n), name_slug(n.split("(")[0])}
+    return names - {""}
+
+
+def same_specs(d, r):
+    keys = ("diameter_cm", "height_cm", "rim_depth_cm", "rim_thickness_cm")
+    return d["pdga_approved_date"] is not None and d["pdga_approved_date"] == r["approved_date"] and all(
+        d[k] is not None and d[k] == r[k] for k in keys
+    )
+
+
+def narrow(d, rows):
+    """Choose among several approvals a disc's names match."""
+    # one named exactly as the disc is: F Model OS rather than F Model OS+,
+    # which fold to the same slug, and Rook (renamed from P Model US) rather
+    # than P Model US+
+    named = {n.strip().lower() for n in (d["model"], d["pdga_model"]) if n}
+    if len(c := [r for r in rows if r["model"].lower() in named]) == 1:
+        return c
+    if len(c := [r for r in rows if pdga_aliases(r["model"]) & named]) == 1:
+        return c
+    # the one Marshall Street copied their specs from, going by its date
+    if len(c := [r for r in rows if r["approved_date"] == d["pdga_approved_date"]]) == 1:
+        return c
+    # a mold approved again when retooled, as DD2 (Frenzy, Distance Driver),
+    # DD2 (new) and DD2 (2025): the latest
+    if len({name_slug(r["model"].split("(")[0]) for r in rows}) == 1:
+        return [max(rows, key=lambda r: r["approved_date"])]
+    return rows
+
+
+def find_approval(d, rows):
+    """The approval among rows that d is, and how it was found. Returns
+    (None, candidates) if it's ambiguous."""
+    if d["pdga_model"] and (c := [r for r in rows if r["model"] == d["pdga_model"]]):
+        how = "Marshall Street's PDGA name"
+    else:
+        names = disc_names(d)
+        c = [r for r in rows if pdga_names(r["model"]) & names]
+        how = "name"
+    if len(c) > 1:
+        c = narrow(d, c)
+    # Marshall Street copies specs from the PDGA, so identical specs and
+    # approval date identify a disc whose name doesn't match
+    if not c:
+        c = [r for r in rows if same_specs(d, r)]
+        how = "specs"
+    if len(c) == 1:
+        return c[0], how
+    return None, c
+
+
+def link_pdga(discs, pdga, brands, molds):
+    """Link each disc to its PDGA approval, among those of its brand's PDGA
+    manufacturers, and take its specs from it. Many discs can share one
+    approval: the Aviar Classic and the KC Pro Aviar are both the Aviar."""
+    by_key = {(r["manufacturer"], r["model"]): r for r in pdga}
+    by_maker = defaultdict(list)
+    for r in pdga:
+        by_maker[r["manufacturer"]].append(r)
+
+    links = molds.get("link", {})
+    not_approved = set(molds.get("not_approved", []))
+    index = disc_index(discs)
+    if stale := sorted((set(links) | not_approved) - set(index)):
+        raise ValueError(f"molds.toml: no disc, or more than one, is {', '.join(map(repr, stale))}")
+    keys = {id(d): k for k, d in index.items() if k in links or k in not_approved}
+    for key, to in links.items():
+        if tuple(to.split(" | ", 1)) not in by_key:
+            raise ValueError(f"molds.toml: {key!r} links to {to!r}, which the PDGA doesn't list")
+
+    found, ambiguous, unlinked, changed = Counter(), [], [], []
+    for d in discs:
+        key = keys.get(id(d), f"{d['brand']} | {d['model']}")
+        if key in not_approved:
+            found["not approved"] += 1
+            continue
+        if key in links:
+            r, how = by_key[tuple(links[key].split(" | ", 1))], "molds.toml"
+        else:
+            r, how = find_approval(d, [r for m in brands[d["brand"]]["pdga"] for r in by_maker[m]])
+        if r is None:
+            if how:
+                ambiguous.append(f"{key}: {' / '.join(c['model'] for c in how)}")
+            else:
+                unlinked.append(key)
+            continue
+        found[how] += 1
+        diff = [k for k, col in PDGA_SPECS.items() if d[k] is not None and d[k] != r[col]]
+        if diff:
+            changed.append(f"{key}: {', '.join(f'{k} {d[k]} -> {r[PDGA_SPECS[k]]}' for k in diff)}")
+        d.update({k: r[col] for k, col in PDGA_SPECS.items()})
+        d.update(pdga_manufacturer=r["manufacturer"], pdga_model=r["model"], certification_number=r["certification_number"])
+
+    linked = sum(n for how, n in found.items() if how != "not approved")
+    print(f"pdga: linked {linked} of {len(discs)} discs to their approval; {found['not approved']} aren't approved")
+    for how, n in sorted(found.items()):
+        if how != "not approved":
+            print(f"  by {how}: {n}")
+    if changed:
+        print(f"  specs that differ from Marshall Street's: {len(changed)}")
+        for line in changed:
+            print(f"    {line}")
+    if ambiguous:
+        print("  matching more than one approval; link them in molds.toml:")
+        for line in ambiguous:
+            print(f"    {line}")
+    if unlinked:
+        print(f"  not linked; link them in molds.toml, or mark them not_approved: {', '.join(unlinked)}")
+
 SCHEMA = """
 CREATE TABLE discs (
     id INTEGER PRIMARY KEY,         -- Marshall Street's disc id
     brand TEXT NOT NULL REFERENCES brands (name),
     model TEXT NOT NULL,            -- display name, with "(OOP)" removed
-    pdga_model TEXT,                -- name as listed by the PDGA, if present
+    pdga_model TEXT,                -- name as approved by the PDGA, if known
+    pdga_manufacturer TEXT,         -- with pdga_model, the disc's pdga_discs row; null if not linked
+    certification_number TEXT,
     category TEXT,                  -- Putters, Midrange Drivers, ...
     speed REAL NOT NULL,
     glide REAL NOT NULL,
@@ -359,6 +535,7 @@ CREATE TABLE discs (
     rim_thickness_cm REAL,
     max_weight_g REAL,
     pdga_approved_date TEXT,        -- ISO 8601 date
+    -- the specs above are the PDGA's for linked discs, Marshall Street's otherwise
     in_stock_products INTEGER,      -- Marshall Street's stock, matched by model name only
     in_stock_choices INTEGER,
     on_sale INTEGER,
@@ -366,7 +543,8 @@ CREATE TABLE discs (
     link TEXT,
     image TEXT,
     bg_color TEXT,                  -- the brand's colors, copied here for build_json.py
-    text_color TEXT
+    text_color TEXT,
+    FOREIGN KEY (pdga_manufacturer, pdga_model) REFERENCES pdga_discs (manufacturer, model)
 );
 CREATE INDEX discs_brand_model ON discs (brand, model);
 
@@ -493,6 +671,7 @@ def main():
     src = Path(sys.argv[1]) if len(sys.argv) > 1 else here / "sources"
     db_path = Path(sys.argv[2]) if len(sys.argv) > 2 else here / "discs.db"
     config = tomllib.loads((here / "brands.toml").read_text())
+    molds = tomllib.loads((here / "molds.toml").read_text())
 
     manifest_path = src / "fetched.json"
     if not manifest_path.exists():
@@ -525,6 +704,7 @@ def main():
     if pdga:
         print(f"pdga: {len(pdga)} approved discs from {len({r['manufacturer'] for r in pdga})} manufacturers")
         check_pdga_names(config["brands"], pdga)
+        link_pdga(discs, pdga, config["brands"], molds)
 
     db_path.unlink(missing_ok=True)
     db = sqlite3.connect(db_path)

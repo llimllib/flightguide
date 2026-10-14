@@ -37,10 +37,9 @@ so corrected numbers move a disc on it.
 
 **The PDGA** publishes every disc it has approved, from every manufacturer,
 as one CSV, loaded as published into the `pdga_discs` table. It has specs,
-a certification number and an approval date, but no flight numbers. It
-isn't linked to `discs` yet, so specs still come from Marshall Street, who
-copy them from the PDGA: in October 2026 the two agreed on 802 of 803 discs
-whose PDGA name matched exactly. Things to know about it:
+a certification number and an approval date, but no flight numbers. Each
+disc is linked to its approval (see below) and takes its specs from it.
+Things to know about it:
 
 - Manufacturer names are often legal or distributor names: "Innova
   Champion Discs", "RPM Discs/Disc Golf Aotearoa".
@@ -70,11 +69,46 @@ Its `[reassign]` section moves discs Marshall Street files under the wrong
 brand. They put 21 discs from brands they don't carry under "Other", and
 file Arsenal, Reptilian and Black Zombie discs under Gateway. Each was
 matched to its PDGA approval by name, specs and approval date.
+It also renames discs, such as the second of the two DD2s Marshall
+Street lists. Where two discs share a name, `brands.toml` and `molds.toml`
+can pick one out by Marshall Street's id: `"Discmania | DD2 #292"`.
 
 The build fails on a brand `brands.toml` doesn't list, on a reassignment
 that matches no disc, and on a PDGA manufacturer name the PDGA's list
 doesn't have, which is how a renamed manufacturer shows up. So a new brand
 is always a decision someone made, recorded in `brands.toml`.
+
+## Linking discs to the PDGA
+
+Each disc is linked to one approval of its brand's PDGA manufacturers
+(`discs.pdga_manufacturer` and `discs.pdga_model`), and takes its specs and
+approval date from it. Discs not linked keep Marshall Street's. Several
+discs can share an approval: the Aviar Classic, KC Pro Aviar and Yeti Pro
+Aviar are all the Aviar. The build tries, in order:
+
+1. Marshall Street's name for the disc's approval, which they copied from
+   the PDGA.
+2. The disc's name against each approval's names, including the aliases
+   in its parentheses: "Rook (renamed from P Model US)" is the P Model US.
+3. Identical specs and approval date. Marshall Street copies specs from
+   the PDGA, so this finds discs sold under another name: RPM's Kahu XG is
+   the Kahu.
+
+When more than one approval matches, it prefers one named exactly as the
+disc is, then the one Marshall Street's approval date points at, then,
+when they're all one mold approved again after retooling (DD2, DD2 (new),
+DD2 (2025)), the latest.
+
+`molds.toml` covers the rest: links the build can't find, like Yikun's
+discs, approved under English names that Marshall Street doesn't use, or
+discs approved under another company; and discs checked by hand and found
+not to be approved, so that the build's report of unlinked discs shows only
+new ones.
+
+In October 2026 linking corrected Marshall Street's specs for three discs
+they'd taken from another company's disc of the same name (Yikun's Crossbow
+and Hammer, and Stokely's CHING Juju), and filled in specs for 52 discs
+they had none for.
 
 ## Checking a build
 

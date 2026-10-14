@@ -104,6 +104,16 @@ with = "Discraft"
 note = "formerly made by Discraft; who makes them now is unknown"
 source = "maintainer's recollection, unverified"
 
+[[brands.Discmania.lineage]]
+with = "Innova"
+note = "the old DD2 was 'produced when Discmania was manufactured by Innova'"
+source = "marshall, the old DD2's description"
+
+[[brands.Discmania.lineage]]
+with = "Innova"
+note = "the old DD2 was a different, faster mold from 'the time of our US-based production'; the current DD2 is the Enigma's mold"
+source = "Discmania's DD2 page, as quoted by the maintainer"
+
 [brands.Discraft]
 pdga = ["Discraft"]
 
@@ -181,6 +191,11 @@ pdga = ["MVP Disc Sports"]
 [brands.Millennium]
 pdga = ["Millennium Golf Discs"]
 
+[[brands.Millennium.lineage]]
+with = "CHING Sports"
+note = "the original Tank is approved under CHING Sports in 1998; Millennium's own Tank - Panzer (2013) is a different disc, designed to complement it"
+source = "pdga, Infinite Discs' description of the Tank-Panzer"
+
 [brands."Mint Discs"]
 pdga = ["Mint Discs"]
 
@@ -221,9 +236,9 @@ pdga = ["Sacred Discs"]
 pdga = ["Stokely Discs"]
 
 [[brands."Stokely Discs".lineage]]
-with = "CHING Sports"
-note = "sells the CHING Juju; its Precision is a different mold from CHING's Power Precision"
-source = "marshall, pdga"
+with = "CHING Disc Golf"
+note = "its JuJu and Precision are approved under CHING Disc Golf, a different PDGA manufacturer from CHING Sports"
+source = "pdga"
 
 [brands.Storm]
 pdga = ["Storm Disc Golf"]
@@ -252,11 +267,6 @@ pdga = ["Vibram Disc Golf"]
 [brands.Viking]
 pdga = ["Viking Discs (IP-Agency Finland Oy)"]
 
-[[brands.Viking.lineage]]
-with = "Guru"
-note = "the Thor is approved under Guru"
-source = "pdga"
-
 [brands."Westside Discs"]
 pdga = ["Westside Golf Discs"]
 
@@ -266,14 +276,10 @@ pdga = ["Wild Discs"]
 [brands.Yikun]
 pdga = ["Yikun Discs"]
 
-[[brands.Yikun.lineage]]
-with = "Black Zombie Disc Golf"
-note = "the Crossbow is approved under Black Zombie Disc Golf"
-source = "pdga"
-
-# Discs Marshall Street files under the wrong brand, as "Brand | Model" as
-# they have it, and the brand they belong to, or { brand, model } to rename
-# the model too. Their "Other" brand is a
+# Discs Marshall Street files under the wrong brand or name, as "Brand |
+# Model" as they have it, and the brand they belong to, or { brand, model }
+# to rename the model too. Where two discs share a name, add Marshall
+# Street's id: "Brand | Model #id". Their "Other" brand is a
 # catch-all for discs from brands they don't carry; each disc here was matched
 # to its PDGA approval by name, specs and approval date.
 [reassign]
@@ -303,3 +309,7 @@ source = "pdga"
 "Gateway | Scale" = "Reptilian Disc Golf"
 "Gateway | Serpent" = "Reptilian Disc Golf"
 "Gateway | Black Zombie Chainsaw" = { brand = "Black Zombie Disc Golf", model = "Chainsaw" }
+# Marshall Street lists two DD2s; this is the old one, "produced when
+# Discmania was manufactured by Innova", before the DD2 was retooled from
+# the Enigma mold in 2025
+"Discmania | DD2 #292" = { brand = "Discmania", model = "DD2 (Old)" }

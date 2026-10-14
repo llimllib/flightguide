@@ -1,0 +1,54 @@
+# Linking discs to their PDGA approvals, where build_db.py can't by itself.
+#
+# build_db.py links each disc to a row of the PDGA's approved discs list,
+# among the manufacturers brands.toml gives its brand, by name and then by
+# identical specs and approval date. This file covers the rest, as
+# "Brand | Model" the way discs.db has them.
+
+# discs with no PDGA approval, checked by hand, so that the build's report of
+# unlinked discs shows only new ones
+not_approved = [
+    "Axiom Discs | Balance",            # only prototypes of the Simon Line Balance are approved
+    "Dino Discs | Allosaurus",          # only the Brachiosaurus and Stegosaurus are approved, as ABC variants
+    "Dino Discs | Diplodocus",
+    "Dino Discs | Pterodactyl",
+    "Dino Discs | Spinosaurus",
+    "Dino Discs | Triceratops",
+    "Dino Discs | Tyrannosaurus Rex",
+    "Doomsday Discs | Bologna",
+    "Doomsday Discs | Cardiac Arrest",
+    "Prodigy | P Model S",
+    "RPM | Kahu OS",
+]
+
+# discs approved under a name, or a manufacturer, the build can't find; as
+# "PDGA manufacturer | PDGA model"
+[link]
+# approved under another company than the brand on the disc
+"Axiom Discs | Uplink" = "MVP Disc Sports | Uplink"
+"Stokely Discs | CHING Juju" = "CHING Disc Golf | JuJu"
+"Stokely Discs | Precision" = "CHING Disc Golf | Precision"
+# the original Tank, 2/1/0/2; Millennium's own Tank - Panzer is a different disc
+"Millennium | Tank" = "CHING Sports | Tank"
+
+# where the build would choose a different approval. Marshall Street's specs
+# for these are another approval's, which misleads the build
+"Discmania | DD2" = "Discmania | DD2 (2025)"
+"Discmania | DD2 (Old)" = "Discmania | DD2 (Frenzy, Distance Driver)"
+"Prodigy | H1 (V2)" = "Prodigy Disc | H1 (retooled H1)"
+# 14/5/0/2; Guru's Thor, whose specs Marshall Street has, is a 4/4/0/2 midrange
+"Viking | Thor" = "Viking Discs (IP-Agency Finland Oy) | Thunder God Thor"
+
+# named differently by the PDGA
+"ABC Discs | Money Putter" = "ABC Discs | Money"
+"Bernoulli Disc Golf | Bernoulli Putter" = "Bernoulli | Bernoulli"
+
+# Yikun's discs are approved under English names, with the Chinese name and
+# its pinyin in parentheses; Marshall Street names them by the pinyin
+"Yikun | Kang" = "Yikun Discs | Horn Fang (当康, Dang Kang)"
+"Yikun | Ling" = "Yikun Discs | Myst (陵鱼, Ling Yu)"
+"Yikun | Long" = "Yikun Discs | Sky Dragon (应龙, Ying Long)"
+"Yikun | Rong" = "Yikun Discs | Warborne (祝融, Zhu Rong)"
+"Yikun | Xing" = "Yikun Discs | Sun Chariot (刑天, Xing Tian)"
+"Yikun | Yan" = "Yikun Discs | Chain Beast (朱厌, Zhu Yan)"
+"Yikun | Yi" = "Yikun Discs | Sunpiercer (比翼鸟, Bi Yi Niao)"
