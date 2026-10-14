@@ -20,6 +20,8 @@ from pathlib import Path
 SOURCES = {
     # the retailer's flight guide: every disc it carries, and the base dataset
     "marshall": ("https://www.marshallstreetdiscgolf.com/flightguide", "marshall/flightguide.html"),
+    # every disc the PDGA has approved, with its measured specs; no flight numbers
+    "pdga": ("https://www.pdga.com/technical-standards/equipment-certification/discs/export", "pdga/discs.csv"),
     # manufacturers, whose own numbers win over the retailer's
     "rpm": ("https://www.rpmdiscs.com/disc-golf-discs/", "rpm/disc-golf-discs.html"),
 }

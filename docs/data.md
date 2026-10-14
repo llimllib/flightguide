@@ -19,6 +19,7 @@ checkout gives the same database every time.
 |----------|----------------------------------------------------|----------|
 | marshall | https://www.marshallstreetdiscgolf.com/flightguide | every disc and all its data |
 | rpm      | https://www.rpmdiscs.com/disc-golf-discs/          | RPM's flight numbers |
+| pdga     | https://www.pdga.com/technical-standards/equipment-certification/discs/export | every PDGA approved disc, and its specs |
 
 `sources/fetched.json` records the URL, time and sha256 of each page's last
 fetch. `build_db.py` copies it into the `sources` table of `discs.db`.
@@ -33,6 +34,23 @@ Piwakawaka as 4 / 5 / 0 / 0, where RPM says 6 / 6 / -3 / 0. Marshall
 Street's stability grade is their own judgement of a disc, not derived from
 its numbers, so it stays theirs. The chart positions discs by turn + fade,
 so corrected numbers move a disc on it.
+
+**The PDGA** publishes every disc it has approved, from every manufacturer,
+as one CSV, loaded as published into the `pdga_discs` table. It has specs,
+a certification number and an approval date, but no flight numbers. It
+isn't linked to `discs` yet, so specs still come from Marshall Street, who
+copy them from the PDGA: in October 2026 the two agreed on 802 of 803 discs
+whose PDGA name matched exactly. Things to know about it:
+
+- Manufacturer names are often legal or distributor names: "Innova
+  Champion Discs", "RPM Discs/Disc Golf Aotearoa".
+- Model names carry aliases and codes in parentheses: "Kahu (DGD2)",
+  "Piwakawaka (MR1, originally Arcturus)".
+- A retooled mold is approved again, as a row of its own: "Kiwi (DGD1,
+  retooled)".
+- Manufacturer and model together are unique; the certification number
+  isn't quite (23-46 is both Compound's Barb and Discmania's MD5).
+- "Last Year Production" is empty for every disc.
 
 ## Checking a build
 

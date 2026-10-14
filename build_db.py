@@ -17,11 +17,15 @@ so it stays theirs. discs.numbers_source says which source a disc's numbers
 came from, and source_numbers keeps every source's numbers for every disc, so
 disagreements stay queryable after the merge.
 
+The PDGA's list of approved discs is loaded as published into pdga_discs. It
+has no flight numbers, and isn't yet linked to discs.
+
 Building is offline and repeatable: run fetch.py to update sources/.
 
 Usage: build_db.py [sources_dir] [db]
 """
 
+import csv
 import json
 import re
 import sqlite3
@@ -242,9 +246,48 @@ def parse_rpm(path):
     return list(rows.values())
 
 
-# one parser per source fetch.py downloads. Every source but marshall is a
-# manufacturer, whose numbers override Marshall Street's.
-PARSERS = {"marshall": parse_marshall, "rpm": parse_rpm}
+# the export's columns, and ours. The CSV is read by header, so a renamed or
+# missing column fails the build rather than shifting values into the wrong one
+PDGA_COLUMNS = {
+    "Manufacturer / Distributor": "manufacturer",
+    "Disc Model": "model",
+    "Certification Number": "certification_number",
+    "Approved Date": "approved_date",
+    "Max Weight (gr)": "max_weight_g",
+    "Diameter (cm)": "diameter_cm",
+    "Height (cm)": "height_cm",
+    "Rim Depth (cm)": "rim_depth_cm",
+    "Inside Rim Diameter (cm)": "inside_rim_diameter_cm",
+    "Rim Thickness (cm)": "rim_thickness_cm",
+    "Rim Depth / Diameter Ratio (%)": "rim_depth_diameter_pct",
+    "Rim Configuration": "rim_configuration",
+    "Flexibility (kg)": "flexibility_kg",
+    "Class": "class",
+    "Max Weight Vint (gr)": "max_weight_vintage_g",
+    "Last Year Production": "last_year_production",
+}
+PDGA_TEXT = {"manufacturer", "model", "certification_number", "approved_date", "class"}
+
+
+def parse_pdga(path):
+    with path.open(encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        if missing := set(PDGA_COLUMNS) - set(reader.fieldnames or ()):
+            raise ValueError(f"pdga: export has no column {', '.join(sorted(missing))}")
+        rows = []
+        for r in reader:
+            row = {}
+            for col, key in PDGA_COLUMNS.items():
+                v = r[col].strip()
+                row[key] = (v or None) if key in PDGA_TEXT else num(v)
+            row["approved_date"] = iso_date(row["approved_date"])
+            rows.append(row)
+    return rows
+
+
+# the manufacturers fetch.py downloads, whose numbers override Marshall
+# Street's, and the parser for each
+MANUFACTURERS = {"rpm": parse_rpm}
 
 SCHEMA = """
 CREATE TABLE discs (
@@ -300,6 +343,27 @@ CREATE TABLE source_numbers (
     url TEXT
 );
 CREATE INDEX source_numbers_disc ON source_numbers (disc_id);
+
+-- the PDGA's approved discs, as published
+CREATE TABLE pdga_discs (
+    manufacturer TEXT NOT NULL,     -- the PDGA's name, often a legal or distributor name
+    model TEXT NOT NULL,            -- as approved, aliases in parentheses: "Kahu (DGD2)"
+    certification_number TEXT NOT NULL,  -- not unique: the PDGA reuses a few
+    approved_date TEXT NOT NULL,    -- ISO 8601 date
+    max_weight_g REAL,
+    diameter_cm REAL,
+    height_cm REAL,
+    rim_depth_cm REAL,
+    inside_rim_diameter_cm REAL,
+    rim_thickness_cm REAL,
+    rim_depth_diameter_pct REAL,
+    rim_configuration REAL,
+    flexibility_kg REAL,
+    class TEXT,                     -- Super Class, Vintage Class, or both
+    max_weight_vintage_g REAL,
+    last_year_production INTEGER,   -- empty for every disc as of October 2026
+    PRIMARY KEY (manufacturer, model)
+);
 """
 
 FLIGHT = ("speed", "glide", "turn", "fade")
@@ -361,7 +425,7 @@ def main():
     if not manifest_path.exists():
         sys.exit(f"no {manifest_path}: run fetch.py first")
     manifest = json.loads(manifest_path.read_text())
-    if unknown := set(manifest) - set(PARSERS):
+    if unknown := set(manifest) - {"marshall", "pdga", *MANUFACTURERS}:
         sys.exit(f"no parser for source {', '.join(sorted(unknown))}")
 
     discs = parse_marshall(src / manifest["marshall"]["file"])
@@ -371,8 +435,8 @@ def main():
     ]
     print(f"marshall: {len(discs)} discs")
 
-    for name, parse in PARSERS.items():
-        if name == "marshall" or name not in manifest:
+    for name, parse in MANUFACTURERS.items():
+        if name not in manifest:
             continue
         rows = parse(src / manifest[name]["file"])
         if not rows:
@@ -380,12 +444,18 @@ def main():
         for r, disc_id in zip(rows, merge(discs, name, rows)):
             numbers.append({"source": name, "disc_id": disc_id, **r})
 
+    pdga = parse_pdga(src / manifest["pdga"]["file"]) if "pdga" in manifest else []
+    if pdga:
+        print(f"pdga: {len(pdga)} approved discs from {len({r['manufacturer'] for r in pdga})} manufacturers")
+
     db_path.unlink(missing_ok=True)
     db = sqlite3.connect(db_path)
     db.executescript(SCHEMA)
     insert(db, "discs", discs)
     insert(db, "sources", [{"name": k, **v} for k, v in manifest.items()])
     insert(db, "source_numbers", numbers)
+    if pdga:
+        insert(db, "pdga_discs", pdga)
     db.commit()
     db.close()
     print(f"wrote {len(discs)} discs to {db_path}")

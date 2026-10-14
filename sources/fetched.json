@@ -5,6 +5,12 @@
     "sha256": "ff6fa62d79e3fd89943d3934fad466197df265d97e8c8883fffdc5c9224c4333",
     "url": "https://www.marshallstreetdiscgolf.com/flightguide"
   },
+  "pdga": {
+    "fetched": "2026-10-14T11:44:39+00:00",
+    "file": "pdga/discs.csv",
+    "sha256": "26a2e80765d33fb7c2bcaedc004a3b5b6404563532509f9f0df36544a8499fff",
+    "url": "https://www.pdga.com/technical-standards/equipment-certification/discs/export"
+  },
   "rpm": {
     "fetched": "2026-10-14T02:57:58+00:00",
     "file": "rpm/disc-golf-discs.html",
