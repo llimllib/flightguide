@@ -39,7 +39,8 @@ BOOLS = ("out_of_production",)
 
 # Marshall Street files one disc under a category of its own, "Disc Golf Sets",
 # which the site has no use for as a filter. Its speed puts it with the distance
-# drivers. Fixed here rather than in discs.db, which mirrors the source.
+# drivers. Fixed here rather than in discs.db, which keeps the sources' data
+# and corrects only flight numbers.
 CATEGORIES = {"Disc Golf Sets": "Distance Drivers"}
 
 

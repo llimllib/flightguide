@@ -1,0 +1,14 @@
+{
+  "marshall": {
+    "fetched": "2026-10-14T02:57:57+00:00",
+    "file": "marshall/flightguide.html",
+    "sha256": "ff6fa62d79e3fd89943d3934fad466197df265d97e8c8883fffdc5c9224c4333",
+    "url": "https://www.marshallstreetdiscgolf.com/flightguide"
+  },
+  "rpm": {
+    "fetched": "2026-10-14T02:57:58+00:00",
+    "file": "rpm/disc-golf-discs.html",
+    "sha256": "8f0859c617d0a17baa44f2faf71aa6cbb27ac189a9300578987fab1e2d9ba80f",
+    "url": "https://www.rpmdiscs.com/disc-golf-discs/"
+  }
+}

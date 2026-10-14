@@ -7,9 +7,17 @@ python = "3.14"
 description = "serve the site locally, with caching off"
 run = "python dev.py"
 
+[tasks.fetch]
+description = "download the latest copy of every source page into sources/"
+run = "python fetch.py"
+
 [tasks.build]
-description = "rebuild discs.db from the scraped pages, then the JSON the site loads"
+description = "rebuild discs.db from the pages in sources/, then the JSON the site loads"
 run = ["python build_db.py", "python build_json.py"]
+
+[tasks.update]
+description = "fetch every source and rebuild everything from it"
+run = ["python fetch.py", "python build_db.py", "python build_json.py"]
 
 [tasks.json]
 description = "rebuild static/data from discs.db"
