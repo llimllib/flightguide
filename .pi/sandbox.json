@@ -1,0 +1,12 @@
+{
+  "network": {
+    "allowedDomains": [
+      "*.rpmdiscs.com",
+      "rpmdiscs.com",
+      "*.marshallstreetdiscgolf.com",
+      "marshallstreetdiscgolf.com",
+      "*.otbdiscs.com",
+      "otbdiscs.com"
+    ]
+  }
+}
